@@ -734,9 +734,17 @@ TOOLS.forEach(function(t){var b=document.getElementById('t-'+t);if(b)b.addEventL
 // ── KEYBOARD ──
 document.addEventListener('keydown',function(e){
   if(e.target===ted)return;
+  if(e.code==='Space'&&!e.repeat&&!e.ctrlKey&&!e.metaKey&&S.tool!=='hand'){
+    e.preventDefault();
+    S._spacePan=true;
+    S._prevTool=S.tool;
+    setTool('hand');
+    return;
+  }
   if((e.key==='g'||e.key==='G')&&!e.ctrlKey&&!e.metaKey){toggleSnap();return;}
   var map={v:'select',f:'frame',r:'rect',o:'ellipse',l:'line',t:'text',i:'image',p:'pen',h:'hand'};
   if(map[e.key]&&!e.ctrlKey&&!e.metaKey)setTool(map[e.key]);
+  if(e.code==='Space'){e.preventDefault();return;}
   if(e.key==='Delete'||e.key==='Backspace'){
     if(S.penEditId&&S.penEditSelNode>=0){
       e.preventDefault();
@@ -775,6 +783,13 @@ document.addEventListener('keydown',function(e){
     var dx=e.key==='ArrowLeft'?-nudge:e.key==='ArrowRight'?nudge:0;
     var dy=e.key==='ArrowUp'?-nudge:e.key==='ArrowDown'?nudge:0;
     nudgeSel(dx,dy);
+  }
+});
+document.addEventListener('keyup',function(e){
+  if(e.target===ted)return;
+  if(e.code==='Space'&&S._spacePan){
+    S._spacePan=false;
+    if(!S.panning)setTool(S._prevTool||'select');
   }
 });
 function nudgeSel(dx,dy){
@@ -2613,7 +2628,16 @@ canvas.addEventListener('mouseup',function(e){
     if(wasMoved){drawPenEditNodes();}
     snapshot();return;
   }
-  if(S.panning){S.panning=false;canvas.style.cursor=S.tool==='hand'?'grab':'default';return;}
+  if(S.panning){
+    S.panning=false;
+    if(S._spacePan){
+      // пробел ещё зажат — остаёмся в hand, просто меняем курсор
+      canvas.style.cursor='grab';
+    } else {
+      canvas.style.cursor=S.tool==='hand'?'grab':'default';
+    }
+    return;
+  }
   if(S.dragging){
         // ---- MULTI DRAG FINISH ----
     if(S.dragMulti && S.dragMulti.ids && S.dragMulti.ids.length){
