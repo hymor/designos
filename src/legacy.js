@@ -927,13 +927,21 @@ function _buildFrameSVG(fr){
 }
 
 function renderFrame(fr){
+  var oldFg=document.getElementById('fg'+fr.id);
+  var anchorFg=oldFg?oldFg.nextSibling:null;
+  var anchorParent=oldFg?oldFg.parentNode:null;
   var fg=_buildFrameSVG(fr);
   if(!fg)return;
   if(fr.frameId){
     var parentFc=getFCG(fr.frameId);
-    if(parentFc){parentFc.appendChild(fg);return;}
+    if(parentFc){
+      if(anchorParent===parentFc&&anchorFg)parentFc.insertBefore(fg,anchorFg);
+      else parentFc.appendChild(fg);
+      return;
+    }
   }
-  framesG.appendChild(fg);
+  if(anchorParent===framesG&&anchorFg)framesG.insertBefore(fg,anchorFg);
+  else framesG.appendChild(fg);
 }
 
 function frameAt(ax,ay){
@@ -980,7 +988,9 @@ function renderEl(el){
   else renderElInto(el,elsLoose);
 }
 function renderElInto(el,pg,inGroup){
-  var old=document.getElementById('g'+el.id);if(old)old.remove();
+  var old=document.getElementById('g'+el.id);
+  var anchor=old?old.nextSibling:null;
+  if(old)old.remove();
   var g=ns('g');g.id='g'+el.id;
   var s=null;
   if(el.type==='rect'){
@@ -1063,7 +1073,7 @@ function renderElInto(el,pg,inGroup){
       });
     })(el);
   }
-  pg.appendChild(g);
+  if(anchor)pg.insertBefore(g,anchor);else pg.appendChild(g);
 }
 
 // ── Z-ORDER ──
@@ -1387,7 +1397,10 @@ function startMultiDrag(ids, primaryId, pt){
 }
 
 function renderGroup(grp){
-  var old=document.getElementById('gg'+grp.id);if(old)old.remove();
+  var old=document.getElementById('gg'+grp.id);
+  var anchorGg=old?old.nextSibling:null;
+  var anchorGgParent=old?old.parentNode:null;
+  if(old)old.remove();
   var bb=getGroupBBox(grp);
   grp.x=bb.x;grp.y=bb.y;grp.w=bb.w||1;grp.h=bb.h||1;
   var gg=ns('g');gg.id='gg'+grp.id;
@@ -1489,8 +1502,11 @@ function renderGroup(grp){
     });
     gg.appendChild(hit);
   })(grp);
-  if(grp.frameId){var pfc=getFCG(grp.frameId);if(pfc){pfc.appendChild(gg);return;}}
-  elsLoose.appendChild(gg);
+  if(grp.frameId){var pfc=getFCG(grp.frameId);if(pfc){
+    if(anchorGgParent===pfc&&anchorGg)pfc.insertBefore(gg,anchorGg);else pfc.appendChild(gg);
+    return;
+  }}
+  if(anchorGgParent===elsLoose&&anchorGg)elsLoose.insertBefore(gg,anchorGg);else elsLoose.appendChild(gg);
 }
 
 function addChildToParent(parentFrameId, parentGroupId, childId){
