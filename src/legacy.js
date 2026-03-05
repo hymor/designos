@@ -1100,7 +1100,7 @@ function selectEl(id,additive){
   S.selId=S.selIds[S.selIds.length-1]||null;
   drawSel(); refreshProps(); refreshLayers();
 }
-function clearSel(){S.selId=null;S.selIds=[];S.swapSrc=null;selOv.innerHTML='';refreshProps();refreshLayers();}
+function clearSel(){S.selId=null;S.selIds=[];S.swapSrc=null;selOv.innerHTML='';refreshProps();refreshLayers();updateExpBtn();}
 function delSel(){
   var ids=S.selIds.length?S.selIds.slice():(S.selId?[S.selId]:[]);
   function deleteFrame(fid){
@@ -1934,6 +1934,7 @@ function exitPenEditMode(){
 
 // ── SELECTION OVERLAY ──
 function drawSel(){
+  updateExpBtn();
   if(S.penEditId)return;
   selOv.innerHTML='';
   var ids=S.selIds.length?S.selIds:(S.selId?[S.selId]:[]);
@@ -3304,40 +3305,63 @@ document.getElementById('load-btn').addEventListener('click',function(){document
 document.getElementById('proj-input').addEventListener('change',function(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){loadProject(ev.target.result);};reader.readAsText(file);e.target.value='';});
 
 // ── EXPORT ──
+function updateExpBtn(){
+  var ids=S.selIds.length?S.selIds:(S.selId?[S.selId]:[]);
+  var btn=document.getElementById('exp-btn');
+  if(ids.length){btn.style.opacity='';btn.style.pointerEvents='';btn.title='Export selected';}
+  else{btn.style.opacity='0.35';btn.style.pointerEvents='none';btn.title='Select objects to export';}
+}
+
 document.getElementById('exp-btn').addEventListener('click',function(){
-  var selFr=S.selId?S.frames.find(function(f){return f.id===S.selId}):null;
-  var x1,y1,vw,vh;
-  if(selFr){x1=selFr.x;y1=selFr.y;vw=selFr.w;vh=selFr.h;}
-  else{
-    var all=[].concat(S.frames).concat(S.els);if(!all.length){toast('Nothing to export');return;}
-    var mx1=Infinity,my1=Infinity,mx2=-Infinity,my2=-Infinity;
-    all.forEach(function(item){var ab=item.frameId?absPos(item):{x:item.x,y:item.y};var lx=item.type==='line'?ab.x+Math.min(0,item.w):ab.x;var ly=item.type==='line'?ab.y+Math.min(0,item.h):ab.y;var rx2=item.type==='line'?ab.x+Math.max(0,item.w):ab.x+item.w;var ry2=item.type==='line'?ab.y+Math.max(0,item.h):ab.y+item.h;mx1=Math.min(mx1,lx);my1=Math.min(my1,ly);mx2=Math.max(mx2,rx2);my2=Math.max(my2,ry2);});
-    var pad=24;x1=mx1-pad;y1=my1-pad;vw=mx2-mx1+pad*2;vh=my2-my1+pad*2;
-  }
+  var ids=S.selIds.length?S.selIds:(S.selId?[S.selId]:[]);
+  if(!ids.length){toast('Select objects to export');return;}
+  var items=ids.map(findAny).filter(Boolean);
+  if(!items.length)return;
   var dc=defsEl.innerHTML;
-  function eSVG(el){
-    var fv=el.fillMode&&el.fillMode!=='solid'?'url(#grad'+el.id+')':el.fill;
-    var op=el.opacity!=null?el.opacity:1;
-    if(el.type==='rect')return'<rect x="'+el.x+'" y="'+el.y+'" width="'+Math.max(1,el.w)+'" height="'+Math.max(1,el.h)+'" rx="'+(el.rx||0)+'" fill="'+fv+'" stroke="'+el.stroke+'" stroke-width="'+el.strokeWidth+'" opacity="'+op+'"/>';
-    if(el.type==='ellipse')return'<ellipse cx="'+(el.x+el.w/2)+'" cy="'+(el.y+el.h/2)+'" rx="'+Math.abs(el.w/2)+'" ry="'+Math.abs(el.h/2)+'" fill="'+fv+'" stroke="'+el.stroke+'" stroke-width="'+el.strokeWidth+'" opacity="'+op+'"/>';
-    if(el.type==='line')return'<line x1="'+el.x+'" y1="'+el.y+'" x2="'+(el.x+el.w)+'" y2="'+(el.y+el.h)+'" stroke="'+el.stroke+'" stroke-width="'+el.strokeWidth+'" stroke-linecap="round" opacity="'+op+'"/>';
-    if(el.type==='text')return'<text x="'+el.x+'" y="'+(el.y+(el.fs||18))+'" font-size="'+(el.fs||18)+'" font-weight="'+(el.fw||400)+'" font-family="system-ui,sans-serif" fill="'+fv+'" opacity="'+op+'">'+el.text+'</text>';
-    if(el.type==='image'&&el.imgData)return'<image x="'+el.x+'" y="'+el.y+'" width="'+el.w+'" height="'+el.h+'" href="'+el.imgData+'" preserveAspectRatio="xMidYMid meet" opacity="'+op+'"/>';
-    return'';
+
+  function exportOne(item,idx){
+    var isFr=S.frames.indexOf(item)>=0;
+    var isGr=item.type==='group';
+    var domId=isFr?'fg'+item.id:isGr?'gg'+item.id:'g'+item.id;
+    var domEl=document.getElementById(domId);
+    var next=function(){if(idx+1<items.length)setTimeout(function(){exportOne(items[idx+1],idx+1);},250);};
+    if(!domEl){next();return;}
+
+    var bb;
+    if(isFr){bb={x:item.x,y:item.y,w:item.w,h:item.h};}
+    else if(isGr){bb=getGroupBBox(item);}
+    else{bb=getBBox(item);}
+    if(!bb||bb.w<1||bb.h<1){next();return;}
+
+    var w=Math.ceil(bb.w),h=Math.ceil(bb.h);
+    var ss='<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"'
+      +' width="'+w+'" height="'+h+'" viewBox="'+bb.x+' '+bb.y+' '+bb.w+' '+bb.h+'">'
+      +'<defs>'+dc+'</defs>'
+      +domEl.outerHTML+'</svg>';
+
+    var name=(item.name||('export-'+(idx+1)))+'.png';
+    var img=new Image();
+    var blob=new Blob([ss],{type:'image/svg+xml'});
+    var url=URL.createObjectURL(blob);
+    img.onload=function(){
+      var c=document.createElement('canvas');c.width=w*2;c.height=h*2;
+      var ctx=c.getContext('2d');ctx.scale(2,2);ctx.drawImage(img,0,0);
+      URL.revokeObjectURL(url);
+      var a=document.createElement('a');a.download=name;a.href=c.toDataURL();a.click();
+      if(idx+1<items.length){setTimeout(function(){exportOne(items[idx+1],idx+1);},250);}
+      else{toast('Exported '+items.length+' file'+(items.length>1?'s':'')+' ✓');}
+    };
+    img.onerror=function(){URL.revokeObjectURL(url);next();};
+    img.src=url;
   }
-  var frSVG='';S.frames.forEach(function(fr){frSVG+='<g transform="translate('+fr.x+','+fr.y+')">';frSVG+='<rect x="0" y="0" width="'+fr.w+'" height="'+fr.h+'" rx="'+(fr.rx||0)+'" fill="'+fr.fill+'"/>';frSVG+='<g clip-path="url(#clip'+fr.id+')">';fr.children.forEach(function(cid){var c=S.els.find(function(e){return e.id===cid});if(c)frSVG+=eSVG(c);});frSVG+='</g></g>';});
-  var loSVG='';S.els.filter(function(e){return !e.frameId}).forEach(function(e){loSVG+=eSVG(e);});
-  var ss='<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="'+vw+'" height="'+vh+'" viewBox="'+x1+' '+y1+' '+vw+' '+vh+'">'+'<defs>'+dc+'</defs>'+(selFr?'':'<rect width="100%" height="100%" fill="#111112"/>')+frSVG+loSVG+'</svg>';
-  var img=new Image();var blob=new Blob([ss],{type:'image/svg+xml'});var url=URL.createObjectURL(blob);
-  img.onload=function(){var c=document.createElement('canvas');c.width=vw*2;c.height=vh*2;var ctx=c.getContext('2d');ctx.scale(2,2);if(!selFr){ctx.fillStyle='#111112';ctx.fillRect(0,0,vw,vh);}ctx.drawImage(img,0,0);URL.revokeObjectURL(url);var a=document.createElement('a');a.download='design.png';a.href=c.toDataURL();a.click();toast(selFr?'Frame exported ✓':'Exported ✓');};
-  img.src=url;
+  exportOne(items[0],0);
 });
 
 // ── INIT ──
 (function(){
   var r=canvas.getBoundingClientRect();S.px=r.width/2-300;S.py=r.height/2-200;
   applyTr();drawSnapGrid();refreshLayers();refreshProps();refreshCompPanel();
-  snapshot();
+  snapshot();updateExpBtn();
   toast('DesignOS v14 — Groups · Masks · Pen Tool');
 })();
 
