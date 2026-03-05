@@ -3011,6 +3011,35 @@ canvas.addEventListener('drop',function(e){
   };reader.readAsDataURL(file);
 });
 
+// ── PASTE IMAGE FROM CLIPBOARD ──
+document.addEventListener('paste',function(e){
+  if(e.target===ted)return; // don't intercept text editor
+  var items=e.clipboardData&&e.clipboardData.items;
+  if(!items)return;
+  var imgItem=null;
+  for(var i=0;i<items.length;i++){if(items[i].type.startsWith('image/')){imgItem=items[i];break;}}
+  if(!imgItem)return;
+  e.preventDefault();
+  var blob=imgItem.getAsFile();
+  if(!blob)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    var img=new Image();
+    img.onload=function(){
+      var mW=600,mH=600,w=img.width,h=img.height;
+      if(w>mW){h=h*(mW/w);w=mW;}if(h>mH){w=w*(mH/h);h=mH;}
+      var r=canvas.getBoundingClientRect();
+      var cx=(r.width/2-S.px)/S.zoom;
+      var cy=(r.height/2-S.py)/S.zoom;
+      var el=mkEl('image',cx-w/2,cy-h/2,w,h,{imgData:ev.target.result,fill:'none',stroke:'none',strokeWidth:0});
+      selectEl(el.id);setTool('select');snapshot();
+      toast('Image pasted ✓');
+    };
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(blob);
+});
+
 // ── TEXT EDITOR ──
 var tedId=null;
 function openTed(el){
