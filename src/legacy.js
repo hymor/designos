@@ -721,15 +721,20 @@ function gradCSS(g){
 var TOOLS=['select','frame','rect','ellipse','line','text','image','pen','hand'];
 function setTool(tool){
   if(S.penEditId)exitPenEditMode();
+  var prev=S.tool;
   S.tool=tool;
   document.querySelectorAll('.tbtn').forEach(function(b){b.classList.remove('on','frame-on')});
   var b=document.getElementById('t-'+tool);
   if(b){if(tool==='frame')b.classList.add('frame-on');else b.classList.add('on');}
-  canvas.style.cursor=tool==='hand'?'grab':tool==='select'?'default':'crosshair';
+  canvas.style.cursor=tool==='hand'?'grab':tool==='eyedropper'?'crosshair':tool==='select'?'default':'crosshair';
   if(tool!=='select')clearSel();
   if(tool==='image')document.getElementById('img-input').click();
+  if(tool!=='eyedropper'&&prev==='eyedropper')edBadgeHide();
 }
 TOOLS.forEach(function(t){var b=document.getElementById('t-'+t);if(b)b.addEventListener('click',function(){setTool(t)});});
+document.getElementById('t-eyedropper').addEventListener('click',function(){
+  if(S.tool==='eyedropper')setTool('select');else activateEyedropper();
+});
 
 // ── KEYBOARD ──
 document.addEventListener('keydown',function(e){
@@ -742,7 +747,8 @@ document.addEventListener('keydown',function(e){
     return;
   }
   if((e.key==='g'||e.key==='G')&&!e.ctrlKey&&!e.metaKey){toggleSnap();return;}
-  var map={v:'select',f:'frame',r:'rect',o:'ellipse',l:'line',t:'text',i:'image',p:'pen',h:'hand'};
+  if(e.key==='i'&&!e.ctrlKey&&!e.metaKey){activateEyedropper();return;}
+  var map={v:'select',f:'frame',r:'rect',o:'ellipse',l:'line',t:'text',p:'pen',h:'hand'};
   if(map[e.key]&&!e.ctrlKey&&!e.metaKey)setTool(map[e.key]);
   if(e.code==='Space'){e.preventDefault();return;}
   if(e.key==='Delete'||e.key==='Backspace'){
@@ -760,6 +766,7 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){
     var rm=document.getElementById('recent-modal');
     if(rm&&rm.style.display!=='none'){hideRecent();return;}
+    if(S.tool==='eyedropper'){setTool(S._prevTool||'select');return;}
     if(S.penActive){penCommit(false);}else if(S.penEditId){exitPenEditMode();}else{clearSel();commitText();}
   }
   if(e.key==='Enter'&&S.penActive){e.preventDefault();penCommit(true);}
@@ -2260,6 +2267,22 @@ function getSelBBox(){
 // ── CANVAS EVENTS ──
 canvas.addEventListener('mousedown',function(e){
   if(e.target===ted)return; commitText();
+  if(S.tool==='eyedropper'){
+    var color=edSampleAt(e.clientX,e.clientY);
+    if(color){
+      var ids=S.selIds.length?S.selIds:(S.selId?[S.selId]:[]);
+      if(ids.length){
+        ids.forEach(function(id){
+          var item=findAny(id);if(!item)return;
+          if(S.frames.indexOf(item)>=0){item.fill=color;renderFrame(item);}
+          else{item.fill=color;renderEl(item);}
+        });
+        refreshProps();snapshot();toast('Fill \u2192 '+color);
+      }
+    }
+    setTool(S._prevTool||'select');
+    return;
+  }
   var pt=svgPt(e);
   if(S.tool==='hand'){S.panning=true;canvas.style.cursor='grabbing';S.panS={mx:e.clientX,my:e.clientY,px:S.px,py:S.py};return;}
   if(S.penEditId){
@@ -2309,6 +2332,7 @@ canvas.addEventListener('mousedown',function(e){
 });
 
 canvas.addEventListener('mousemove',function(e){
+  if(S.tool==='eyedropper'){edBadgeUpdate(e);return;}
   if(S.penEditId&&S.penEditDragHandleNode>=0){
     var pt=svgPt(e),sp=snapPt(pt);
     var el=S.els.find(function(e2){return e2.id===S.penEditId});
@@ -3538,6 +3562,77 @@ document.getElementById('exp-btn').addEventListener('click',function(){
   exportOne(items[0],0);
 });
 
+// ── EYEDROPPER ──
+function activateEyedropper(){
+  S._prevTool=S.tool;
+  S.tool='eyedropper';
+  document.querySelectorAll('.tbtn').forEach(function(b){b.classList.remove('on','frame-on')});
+  var b=document.getElementById('t-eyedropper');if(b)b.classList.add('on');
+  canvas.style.cursor='crosshair';
+}
+function edSampleAt(cx,cy){
+  // temporarily hide selOv so we can pierce through it
+  var prevPE=selOv.style.pointerEvents;
+  selOv.style.pointerEvents='none';
+  var els=document.elementsFromPoint(cx,cy);
+  selOv.style.pointerEvents=prevPE;
+  var SHAPES=['rect','ellipse','circle','path','line','polygon','polyline'];
+  for(var i=0;i<els.length;i++){
+    var el=els[i];
+    var tag=(el.tagName||'').toLowerCase();
+    if(SHAPES.indexOf(tag)>=0){
+      var fill=el.getAttribute('fill');
+      if(fill&&fill!=='none'&&!fill.startsWith('url(')){
+        return rgbToHex(fill);
+      }
+      // also check computed style
+      var cs=window.getComputedStyle(el);
+      var cf=cs.fill||cs.color;
+      if(cf&&cf!=='none'&&!cf.startsWith('url(')){return rgbToHex(cf);}
+    }
+  }
+  return null;
+}
+function rgbToHex(str){
+  if(!str)return null;
+  str=str.trim();
+  if(/^#[0-9a-f]{3,6}$/i.test(str)){
+    if(str.length===4){
+      return '#'+str[1]+str[1]+str[2]+str[2]+str[3]+str[3];
+    }
+    return str.toLowerCase();
+  }
+  var m=str.match(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if(m){
+    return '#'+[m[1],m[2],m[3]].map(function(v){return ('0'+parseInt(v).toString(16)).slice(-2);}).join('');
+  }
+  return null;
+}
+function edBadgeUpdate(e){
+  var badge=document.getElementById('ed-badge');
+  var color=edSampleAt(e.clientX,e.clientY);
+  badge.style.display='flex';
+  badge.style.left=(e.clientX+18)+'px';
+  badge.style.top=(e.clientY+18)+'px';
+  var swatch=document.getElementById('ed-swatch');
+  var hexEl=document.getElementById('ed-hex');
+  var hintEl=document.getElementById('ed-hint');
+  if(color){
+    swatch.style.background=color;
+    hexEl.textContent=color.toUpperCase();
+    var ids=S.selIds.length?S.selIds:(S.selId?[S.selId]:[]);
+    hintEl.textContent=ids.length?'Click to apply':'Click to sample';
+  } else {
+    swatch.style.background='transparent';
+    hexEl.textContent='–';
+    hintEl.textContent='No color here';
+  }
+}
+function edBadgeHide(){
+  var badge=document.getElementById('ed-badge');
+  if(badge)badge.style.display='none';
+}
+
 // ── INIT ──
 (function(){
   var r=canvas.getBoundingClientRect();S.px=r.width/2-300;S.py=r.height/2-200;
@@ -3562,3 +3657,4 @@ window.showRecent = showRecent;
 window.hideRecent = hideRecent;
 window.newProject = newProject;
 window.renameProject = renameProject;
+window.activateEyedropper = activateEyedropper;
