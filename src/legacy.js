@@ -855,7 +855,7 @@ document.addEventListener('keydown',function(e){
     if(e.key==='y'){e.preventDefault();redo();}
     if(e.key==='c'){e.preventDefault();copyItems();}
     if(e.key==='x'){e.preventDefault();cutItems();}
-    if(e.key==='v'){e.preventDefault();pasteItems();}
+    if(e.key==='v'){if(S.clipboard.length){e.preventDefault();pasteItems();}}
     if(e.key==='d'){e.preventDefault();copyItems();pasteItems();}
     if(e.key==='k'||e.key==='K'){e.preventDefault();makeComponent();}
     if(e.key==='g'||e.key==='G'){e.preventDefault();if(e.shiftKey)ungroupSel();else groupSel();}
@@ -2206,8 +2206,12 @@ if(ids.length===1){
               return;
             }
             // --- normal element/frame resize start ---
-            var ab2=absPos(tgt);
-            S.resS={mx:pt.x,my:pt.y,ax:ab2.x,ay:ab2.y,w:tgt.w,h:tgt.h};
+            var ab2=tgt.type==='path'?getBBox(tgt):absPos(tgt);
+            var rw=tgt.type==='path'?(ab2.w||1):tgt.w;
+            var rh=tgt.type==='path'?(ab2.h||1):tgt.h;
+            S.resS={mx:pt.x,my:pt.y,ax:ab2.x,ay:ab2.y,w:rw,h:rh,
+              origD:tgt.type==='path'?tgt.d:null,
+              origPts:tgt.type==='path'?deep(tgt.pts):null};
           });
         })(hp.d, T, isF);
         grp.appendChild(hr);
@@ -2674,15 +2678,20 @@ canvas.addEventListener('mousemove',function(e){
       var it=findAny(id); if(!it) return;
 
       if(snap.type==='path'){
-        it.pts = (snap.pts||[]).map(function(p){
-          var np=deep(p);
-          np.x = ax0 + (p.x-ax0)*sx;
-          np.y = ay0 + (p.y-ay0)*sy;
-          if(np.cx1!=null){np.cx1 = ax0 + (p.cx1-ax0)*sx; np.cy1 = ay0 + (p.cy1-ay0)*sy;}
-          if(np.cx2!=null){np.cx2 = ax0 + (p.cx2-ax0)*sx; np.cy2 = ay0 + (p.cy2-ay0)*sy;}
-          return np;
-        });
-        it.d = penPtsToD(it.pts, it.d && it.d.endsWith('Z'));
+        if(it.importedSVG){
+          var scM2=[sx,0,0,sy,ax0*(1-sx),ay0*(1-sy)];
+          it.d=svgTransformD(snap.d,scM2);
+          it.pts=extractPtsFromD(it.d);
+        }else{
+          it.pts=(snap.pts||[]).map(function(p){
+            var np=deep(p);
+            np.x=ax0+(p.x-ax0)*sx;np.y=ay0+(p.y-ay0)*sy;
+            if(np.cx1!=null){np.cx1=ax0+(p.cx1-ax0)*sx;np.cy1=ay0+(p.cy1-ay0)*sy;}
+            if(np.cx2!=null){np.cx2=ax0+(p.cx2-ax0)*sx;np.cy2=ay0+(p.cy2-ay0)*sy;}
+            return np;
+          });
+          it.d=penPtsToD(it.pts,it.d&&it.d.endsWith('Z'));
+        }
         renderEl(it);
         return;
       }
@@ -2731,6 +2740,26 @@ canvas.addEventListener('mousemove',function(e){
     if(d.indexOf('s')>=0)ah=Math.max(10,snapV(rs.h+dy));
     if(d.indexOf('w')>=0){ax=snapV(rs.ax+dx);aw=Math.max(10,rs.w+(rs.ax-ax));}
     if(d.indexOf('n')>=0){ay=snapV(rs.ay+dy);ah=Math.max(10,rs.h+(rs.ay-ay));}
+    if(el2.type==='path'){
+      var sx2=aw/(rs.w||1),sy2=ah/(rs.h||1);
+      var ancX=d.indexOf('w')>=0?rs.ax+rs.w:rs.ax;
+      var ancY=d.indexOf('n')>=0?rs.ay+rs.h:rs.ay;
+      if(el2.importedSVG){
+        var scM=[sx2,0,0,sy2,ancX*(1-sx2),ancY*(1-sy2)];
+        el2.d=svgTransformD(rs.origD,scM);
+        el2.pts=extractPtsFromD(el2.d);
+      }else{
+        el2.pts=(rs.origPts||[]).map(function(p){
+          var np=deep(p);
+          np.x=ancX+(p.x-ancX)*sx2;np.y=ancY+(p.y-ancY)*sy2;
+          if(np.cx1!=null){np.cx1=ancX+(p.cx1-ancX)*sx2;np.cy1=ancY+(p.cy1-ancY)*sy2;}
+          if(np.cx2!=null){np.cx2=ancX+(p.cx2-ancX)*sx2;np.cy2=ancY+(p.cy2-ancY)*sy2;}
+          return np;
+        });
+        el2.d=penPtsToD(el2.pts,el2.d&&el2.d.endsWith('Z'));
+      }
+      renderEl(el2);drawSel();refreshProps();return;
+    }
     if(isFr){el2.x=ax;el2.y=ay;el2.w=aw;el2.h=ah;renderFrame(el2);}
     else{
       if(el2.frameId){var pf=S.frames.find(function(f){return f.id===el2.frameId});if(pf){el2.x=ax-pf.x;el2.y=ay-pf.y;}}else{el2.x=ax;el2.y=ay;}
@@ -3215,19 +3244,41 @@ function importSVGShapes(svgText){
   toast('Imported '+shapes.length+' shape'+(shapes.length>1?'s':'')+' as paths ✓');
 }
 
-// Extract {x,y} anchor pts from an absolute SVG d string (for bbox + drag)
+// Extract pts WITH bezier handles from an absolute SVG d string
 function extractPtsFromD(d){
-  var pts=[];
-  var segs=[];var re=/([MmLlHhVvCcQqSsTtZz])((?:[^MmLlHhVvCcQqSsTtZz])*)/g,seg;
+  var pts=[],segs=[];
+  var re=/([MmLlHhVvCcQqSsTtZz])((?:[^MmLlHhVvCcQqSsTtZz])*)/g,seg;
   while((seg=re.exec(d))!==null){
     var ns=(seg[2].match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g)||[]).map(Number);
-    segs.push({c:seg[1].toUpperCase(),n:ns});
+    segs.push({c:seg[1],n:ns});
   }
+  var prevOutX=null,prevOutY=null;
   segs.forEach(function(s){
-    var c=s.c,n=s.n;
-    if(c==='M'||c==='L'){for(var i=0;i+1<n.length;i+=2)pts.push({x:n[i],y:n[i+1]});}
-    else if(c==='C'){for(var i=0;i+5<n.length;i+=6)pts.push({x:n[i+4],y:n[i+5]});}
-    else if(c==='Q'||c==='S'){for(var i=0;i+3<n.length;i+=4)pts.push({x:n[i+2],y:n[i+3]});}
+    var c=s.c.toUpperCase(),n=s.n;
+    if(c==='M'||c==='L'){
+      for(var i=0;i+1<n.length;i+=2){pts.push({x:n[i],y:n[i+1]});prevOutX=null;prevOutY=null;}
+    }else if(c==='C'){
+      for(var i=0;i+5<n.length;i+=6){
+        if(pts.length>0){pts[pts.length-1].cx2=n[i];pts[pts.length-1].cy2=n[i+1];}
+        prevOutX=n[i+2];prevOutY=n[i+3];
+        pts.push({x:n[i+4],y:n[i+5],cx1:n[i+2],cy1:n[i+3]});
+      }
+    }else if(c==='Q'){
+      for(var i=0;i+3<n.length;i+=4){
+        if(pts.length>0){pts[pts.length-1].cx2=n[i];pts[pts.length-1].cy2=n[i+1];}
+        pts.push({x:n[i+2],y:n[i+3],cx1:n[i],cy1:n[i+1]});
+        prevOutX=null;prevOutY=null;
+      }
+    }else if(c==='S'){
+      for(var i=0;i+3<n.length;i+=4){
+        var pp=pts[pts.length-1];
+        var rx=pp?2*pp.x-(prevOutX!=null?prevOutX:pp.x):n[i];
+        var ry=pp?2*pp.y-(prevOutY!=null?prevOutY:pp.y):n[i+1];
+        if(pts.length>0){pts[pts.length-1].cx2=rx;pts[pts.length-1].cy2=ry;}
+        prevOutX=n[i];prevOutY=n[i+1];
+        pts.push({x:n[i+2],y:n[i+3],cx1:n[i],cy1:n[i+1]});
+      }
+    }
   });
   return pts;
 }
