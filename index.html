@@ -166,11 +166,44 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 .make-comp-btn:hover{background:rgba(247,201,72,0.2);}
 #comp-panel{padding:10px 0 0;}
 rect[data-drop]{stroke:#7b61ff!important;stroke-width:2px!important;filter:drop-shadow(0 0 6px rgba(123,97,255,0.6));}
+/* ── Recent Projects Modal ── */
+.recent-modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center}
+.recent-ov{position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px)}
+.recent-panel{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;width:680px;max-width:95vw;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.6)}
+.recent-hdr{display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);gap:10px}
+.recent-hdr-title{font-size:14px;font-weight:700;color:var(--text);flex:1}
+.recent-proj-name{font-size:12px;color:var(--text3);font-weight:400}
+.recent-new-btn{height:28px;padding:0 12px;background:var(--accent);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;cursor:pointer}
+.recent-new-btn:hover{opacity:.85}
+.recent-x{width:28px;height:28px;border:none;background:transparent;color:var(--text3);font-size:16px;cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center}
+.recent-x:hover{background:var(--surface3);color:var(--text)}
+.recent-grid{flex:1;overflow-y:auto;padding:16px 20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(152px,1fr));gap:14px;align-content:start}
+.recent-grid::-webkit-scrollbar{width:4px}
+.recent-grid::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.recent-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .1s}
+.recent-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.recent-thumb{width:100%;height:96px;background:var(--surface3);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.recent-thumb img{width:100%;height:100%;object-fit:cover}
+.recent-thumb-empty{font-size:30px;opacity:.2}
+.recent-card-body{padding:8px 10px 10px}
+.recent-card-name{font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;display:flex;align-items:center;justify-content:space-between}
+.recent-card-date{font-size:10px;color:var(--text3)}
+.recent-card-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0;line-height:1;opacity:.5}
+.recent-card-del:hover{color:#ff5f57;opacity:1}
+.recent-empty{grid-column:1/-1;text-align:center;padding:48px 0;color:var(--text3);font-size:12px;line-height:2}
+.logo{cursor:pointer}
+.logo:hover{color:var(--text)}
 </style>
 </head>
 <body>
 <div id="topbar">
-  <div class="logo">DesignOS</div>
+  <div class="logo" onclick="showRecent()" title="Projects (recent files)">DesignOS</div>
+  <span style="color:var(--border);font-size:13px;flex-shrink:0">/</span>
+  <input id="proj-name-input" value="Untitled" title="Click to rename project"
+    style="background:transparent;border:none;border-bottom:1px solid transparent;color:var(--text2);font-size:12px;font-family:inherit;outline:none;min-width:60px;max-width:160px;cursor:pointer;padding:2px 4px;border-radius:4px"
+    onfocus="this.style.borderBottomColor='var(--accent)';this.style.color='var(--text)';this.style.cursor='text'"
+    onblur="this.style.borderBottomColor='transparent';this.style.color='var(--text2)';this.style.cursor='pointer';renameProject(this.value)"
+    onkeydown="if(event.key==='Enter')this.blur()"/>
   <button class="tbtn on" id="t-select" title="Select (V)"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M2.5 1.5l9 5.5-4.5 1-1.5 5z" fill="currentColor"/></svg></button>
   <button class="tbtn" id="t-frame" title="Frame (F)"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/><line x1="4" y1="1" x2="4" y2="13" stroke="currentColor" stroke-width="1"/><line x1="10" y1="1" x2="10" y2="13" stroke="currentColor" stroke-width="1"/><line x1="1" y1="4" x2="13" y2="4" stroke="currentColor" stroke-width="1"/><line x1="1" y1="10" x2="13" y2="10" stroke="currentColor" stroke-width="1"/></svg></button>
   <button class="tbtn" id="t-rect" title="Rectangle (R)"><svg width="13" height="13" viewBox="0 0 13 13"><rect x="1" y="1" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></button>
@@ -223,6 +256,18 @@ rect[data-drop]{stroke:#7b61ff!important;stroke-width:2px!important;filter:drop-
 </div>
 <div id="right-panel">
   <div id="props"><div class="no-sel">Select an element<br>to see properties<br><span style="font-size:10px;opacity:.5">Shift+click or drag to multi-select</span></div></div>
+</div>
+<div id="recent-modal" style="display:none" class="recent-modal">
+  <div class="recent-ov" onclick="hideRecent()"></div>
+  <div class="recent-panel">
+    <div class="recent-hdr">
+      <span class="recent-hdr-title">Projects</span>
+      <span class="recent-proj-name" id="recent-cur-name"></span>
+      <button class="recent-new-btn" onclick="newProject()">+ New project</button>
+      <button class="recent-x" onclick="hideRecent()">✕</button>
+    </div>
+    <div id="recent-grid" class="recent-grid"></div>
+  </div>
 </div>
 <div id="canvas">
   <canvas id="snap-grid"></canvas>

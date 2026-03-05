@@ -22,7 +22,9 @@ var S={
   penEditId:null, penEditSelNode:-1, penEditDragNodeIdx:-1, penEditDragStart:null,
   penEditDragHandleNode:-1, penEditDragHandleSide:'', penEditDragMoved:false,
   components:[],  // {id, name, sourceId, data:{...}}  (master definitions)
-  smartGuides:true
+  smartGuides:true,
+  projId:null,
+  projName:'Untitled'
 };
 
 var canvas   = document.getElementById('canvas');
@@ -88,6 +90,7 @@ function snapshot(){
   if(S.history.length>MAX_HIST)S.history.shift();
   S.histIdx=S.history.length-1;
   refreshUndoUI();
+  scheduleAutoSave();
 }
 function refreshUndoUI(){
   var u=document.getElementById('undo-btn'),r=document.getElementById('redo-btn');
@@ -746,7 +749,11 @@ document.addEventListener('keydown',function(e){
       } else {toast('Path needs at least 2 nodes');}
     } else if(S.selId||S.selIds.length){e.preventDefault();delSel();}
   }
-  if(e.key==='Escape'){if(S.penActive){penCommit(false);}else if(S.penEditId){exitPenEditMode();}else{clearSel();commitText();}}
+  if(e.key==='Escape'){
+    var rm=document.getElementById('recent-modal');
+    if(rm&&rm.style.display!=='none'){hideRecent();return;}
+    if(S.penActive){penCommit(false);}else if(S.penEditId){exitPenEditMode();}else{clearSel();commitText();}
+  }
   if(e.key==='Enter'&&S.penActive){e.preventDefault();penCommit(true);}
   if(e.ctrlKey||e.metaKey){
     if(e.key==='s'){e.preventDefault();saveProject();}
@@ -3294,6 +3301,8 @@ function loadProject(json){
     var data=JSON.parse(json);
     framesG.innerHTML='';elsLoose.innerHTML='';selOv.innerHTML='';defsEl.innerHTML='';sgG.innerHTML='';
     S.frames=[];S.els=[];S.selId=null;S.selIds=[];S.nid=data.nid||1;S.components=data.components||[];activeGradStop=0;
+    S.projId=data.projId||('p'+Date.now());
+    setProjName(data.projName||'Untitled');
     (data.frames||[]).forEach(function(fr){S.frames.push(fr);renderFrame(fr);});
     (data.els||[]).forEach(function(el){S.els.push(el);if(!el.frameId)renderElInto(el,elsLoose);});
     S.frames.filter(function(fr){return !fr.frameId;}).forEach(function(fr){if(getAL(fr)){applyAutoLayout(fr);}renderFrame(fr);});
@@ -3303,6 +3312,138 @@ function loadProject(json){
 document.getElementById('save-btn').addEventListener('click',saveProject);
 document.getElementById('load-btn').addEventListener('click',function(){document.getElementById('proj-input').click();});
 document.getElementById('proj-input').addEventListener('change',function(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){loadProject(ev.target.result);};reader.readAsText(file);e.target.value='';});
+
+// ── AUTO-SAVE & PROJECTS ──
+var _autoSaveTimer=null;
+function setProjName(name){
+  S.projName=name||'Untitled';
+  var inp=document.getElementById('proj-name-input');
+  if(inp&&document.activeElement!==inp)inp.value=S.projName;
+}
+function renameProject(name){
+  setProjName((name||'').trim()||'Untitled');
+  scheduleAutoSave();
+}
+function scheduleAutoSave(){
+  clearTimeout(_autoSaveTimer);
+  _autoSaveTimer=setTimeout(doAutoSave,2500);
+}
+function doAutoSave(){
+  if(!S.projId) S.projId='p'+Date.now();
+  var data={version:8,projId:S.projId,projName:S.projName,nid:S.nid,frames:S.frames,els:S.els,components:S.components};
+  var json=JSON.stringify(data);
+  try{localStorage.setItem('dos_proj_'+S.projId,json);}catch(e){return;}
+  var list=[];
+  try{list=JSON.parse(localStorage.getItem('dos_projects')||'[]');}catch(e){}
+  list=list.filter(function(p){return p.id!==S.projId;});
+  list.unshift({id:S.projId,name:S.projName,savedAt:Date.now(),thumb:null});
+  if(list.length>20)list.length=20;
+  try{
+    localStorage.setItem('dos_projects',JSON.stringify(list));
+    localStorage.setItem('dos_last',S.projId);
+  }catch(e){}
+  genThumbAsync(function(dataUrl){
+    if(!dataUrl)return;
+    var list2=[];
+    try{list2=JSON.parse(localStorage.getItem('dos_projects')||'[]');}catch(e){}
+    var i=list2.findIndex(function(p){return p.id===S.projId;});
+    if(i>=0){list2[i].thumb=dataUrl;try{localStorage.setItem('dos_projects',JSON.stringify(list2));}catch(e){}}
+  });
+}
+function genThumbAsync(cb){
+  var svgEl=document.getElementById('svg');
+  if(!svgEl||(!S.frames.length&&!S.els.length)){cb(null);return;}
+  try{
+    var s=new XMLSerializer().serializeToString(svgEl);
+    var blob=new Blob([s],{type:'image/svg+xml'});
+    var url=URL.createObjectURL(blob);
+    var img=new Image();
+    img.onload=function(){
+      var c=document.createElement('canvas');c.width=160;c.height=100;
+      var ctx=c.getContext('2d');
+      ctx.fillStyle='#111112';ctx.fillRect(0,0,160,100);
+      var scale=Math.min(160/img.naturalWidth,100/img.naturalHeight);
+      var dw=img.naturalWidth*scale,dh=img.naturalHeight*scale;
+      ctx.drawImage(img,(160-dw)/2,(100-dh)/2,dw,dh);
+      URL.revokeObjectURL(url);
+      cb(c.toDataURL('image/jpeg',0.75));
+    };
+    img.onerror=function(){URL.revokeObjectURL(url);cb(null);};
+    img.src=url;
+  }catch(e){cb(null);}
+}
+function showRecent(){
+  var modal=document.getElementById('recent-modal');
+  var grid=document.getElementById('recent-grid');
+  var curName=document.getElementById('recent-cur-name');
+  if(curName)curName.textContent=S.projName?('Current: '+S.projName):'';
+  var list=[];
+  try{list=JSON.parse(localStorage.getItem('dos_projects')||'[]');}catch(e){}
+  grid.innerHTML='';
+  if(!list.length){
+    grid.innerHTML='<div class="recent-empty">No saved projects yet.<br>Your work saves automatically as you design.</div>';
+  } else {
+    list.forEach(function(p){
+      var card=document.createElement('div');card.className='recent-card';
+      var isCurrent=p.id===S.projId;
+      if(isCurrent)card.style.borderColor='var(--accent)';
+      var thumbHtml=p.thumb
+        ?'<img src="'+p.thumb+'" alt="">'
+        :'<span class="recent-thumb-empty">&#9654;</span>';
+      var d=new Date(p.savedAt);
+      var dateStr=d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+      card.innerHTML=
+        '<div class="recent-thumb">'+thumbHtml+'</div>'+
+        '<div class="recent-card-body">'+
+          '<div class="recent-card-name">'+
+            escHtml(p.name||'Untitled')+
+            '<button class="recent-card-del" data-id="'+escHtml(p.id)+'" title="Delete">&#x2715;</button>'+
+          '</div>'+
+          '<div class="recent-card-date">'+dateStr+(isCurrent?' · open':'')+'</div>'+
+        '</div>';
+      card.addEventListener('click',function(e){
+        if(e.target.closest('.recent-card-del'))return;
+        loadProjFromLS(p.id);
+      });
+      card.querySelector('.recent-card-del').addEventListener('click',function(e){
+        e.stopPropagation();deleteProjFromLS(p.id,card);
+      });
+      grid.appendChild(card);
+    });
+  }
+  modal.style.display='flex';
+}
+function hideRecent(){document.getElementById('recent-modal').style.display='none';}
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function loadProjFromLS(id){
+  var json=localStorage.getItem('dos_proj_'+id);
+  if(!json){toast('Project not found');return;}
+  loadProject(json);
+  hideRecent();
+}
+function deleteProjFromLS(id,card){
+  localStorage.removeItem('dos_proj_'+id);
+  var list=[];
+  try{list=JSON.parse(localStorage.getItem('dos_projects')||'[]');}catch(e){}
+  list=list.filter(function(p){return p.id!==id;});
+  try{localStorage.setItem('dos_projects',JSON.stringify(list));}catch(e){}
+  if(id===localStorage.getItem('dos_last'))localStorage.removeItem('dos_last');
+  card.style.opacity='0';card.style.transform='scale(0.9)';card.style.transition='all .2s';
+  setTimeout(function(){card.remove();
+    var grid=document.getElementById('recent-grid');
+    if(grid&&!grid.querySelector('.recent-card'))
+      grid.innerHTML='<div class="recent-empty">No saved projects yet.<br>Your work saves automatically as you design.</div>';
+  },200);
+}
+function newProject(){
+  framesG.innerHTML='';elsLoose.innerHTML='';selOv.innerHTML='';defsEl.innerHTML='';sgG.innerHTML='';
+  S.frames=[];S.els=[];S.selId=null;S.selIds=[];S.nid=1;S.components=[];
+  S.projId='p'+Date.now();setProjName('Untitled');
+  S.history=[];S.histIdx=-1;
+  var r=canvas.getBoundingClientRect();S.px=r.width/2-300;S.py=r.height/2-200;
+  applyTr();drawSnapGrid();refreshLayers();refreshProps();refreshCompPanel();refreshUndoUI();
+  snapshot();hideRecent();toast('New project');
+}
 
 // ── EXPORT ──
 function updateExpBtn(){
@@ -3361,9 +3502,23 @@ document.getElementById('exp-btn').addEventListener('click',function(){
 (function(){
   var r=canvas.getBoundingClientRect();S.px=r.width/2-300;S.py=r.height/2-200;
   applyTr();drawSnapGrid();refreshLayers();refreshProps();refreshCompPanel();
-  snapshot();updateExpBtn();
-  toast('DesignOS v14 — Groups · Masks · Pen Tool');
+  // Restore last session from localStorage
+  var lastId=localStorage.getItem('dos_last');
+  if(lastId){
+    var saved=localStorage.getItem('dos_proj_'+lastId);
+    if(saved){try{loadProject(saved);}catch(e){snapshot();}}
+    else{snapshot();}
+  } else {
+    S.projId='p'+Date.now();
+    snapshot();
+  }
+  updateExpBtn();
+  toast('DesignOS v14 — Auto-save enabled');
 })();
 
 // expose for inline HTML handlers
 window.showTab = showTab;
+window.showRecent = showRecent;
+window.hideRecent = hideRecent;
+window.newProject = newProject;
+window.renameProject = renameProject;
