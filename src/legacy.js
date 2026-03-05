@@ -60,6 +60,11 @@ function getBBox(item){
     var pxs=item.pts.map(function(p){return p.x;}),pys=item.pts.map(function(p){return p.y;});
     var px=Math.min.apply(null,pxs),py=Math.min.apply(null,pys);
     var pw=Math.max.apply(null,pxs)-px,ph=Math.max.apply(null,pys)-py;
+    // pts are frame-local when inside a frame — add frame absolute pos to get canvas coords
+    if(item.frameId){
+      var pff=S.frames.find(function(f){return f.id===item.frameId;});
+      if(pff){var pffa=absPos(pff);return{x:pffa.x+px,y:pffa.y+py,w:pw||1,h:ph||1};}
+    }
     return{x:px,y:py,w:pw||1,h:ph||1};
   }
   var ab=absPos(item);
@@ -483,8 +488,9 @@ function moveGroupToFrameSpace(grp, targetFrameId){
 
       // переводим в локальные координаты нового контейнера
       if(item.type === 'path'){
-        var dx = -targetAbs.x, dy = -targetAbs.y;
-        item.pts = item.pts.map(p => movePt(p, dx, dy));
+        var dx2 = targetAbs ? -targetAbs.x : 0;
+        var dy2 = targetAbs ? -targetAbs.y : 0;
+        item.pts = item.pts.map(function(p){return movePt(p,dx2,dy2);});
         item.d = penPtsToD(item.pts, item.d && item.d.endsWith('Z'));
       } else {
         item.x = ab.x - targetAbs.x;
@@ -654,6 +660,76 @@ function toggleAutoLayout(fr){
   snapshot();
 }
 
+function wrapInAutoLayout(){
+  var ids=S.selIds.length?S.selIds.slice():(S.selId?[S.selId]:[]);
+  if(!ids.length){toast('Select objects to wrap in Auto Layout');return;}
+  var items=ids.map(findAny).filter(Boolean);
+  if(!items.length)return;
+
+  // combined absolute bounding box
+  var x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;
+  items.forEach(function(item){
+    var bb=getBBox(item);
+    x1=Math.min(x1,bb.x);y1=Math.min(y1,bb.y);
+    x2=Math.max(x2,bb.x+bb.w);y2=Math.max(y2,bb.y+bb.h);
+  });
+  if(x1===Infinity)return;
+
+  // create frame with no fill and auto-layout enabled
+  var fr={id:uid(),type:'frame',x:x1,y:y1,w:x2-x1,h:y2-y1,
+    fill:'none',rx:0,opacity:1,stroke:'none',strokeWidth:0,
+    name:'Auto Layout '+(S.nid++),
+    children:[],frameId:null,groupId:null,isMask:false,
+    autoLayout:defaultAL()};
+  S.frames.push(fr);
+
+  items.forEach(function(item){
+    var isFr2=S.frames.indexOf(item)>=0&&item!==fr;
+    var isGr2=item.type==='group';
+
+    // capture absolute bbox before any mutations
+    var bb=getBBox(item);
+
+    // detach from old parent frame
+    var oldFrameId=item.frameId;
+    if(oldFrameId){
+      var oldFr=S.frames.find(function(f){return f.id===oldFrameId;});
+      if(oldFr)oldFr.children=oldFr.children.filter(function(c){return c!==item.id;});
+    }
+
+    // remove stale DOM
+    var domId=(isFr2?'fg':isGr2?'gg':'g')+item.id;
+    var oldDom=document.getElementById(domId);if(oldDom)oldDom.remove();
+
+    // attach to new frame
+    item.frameId=fr.id;
+    fr.children.push(item.id);
+
+    // convert to frame-local coords
+    if(item.type==='path'){
+      // pts may be absolute (no old frame) or old-frame-local (had frameId)
+      var ptsOffX=0,ptsOffY=0;
+      if(oldFrameId){
+        var olf=S.frames.find(function(f){return f.id===oldFrameId;});
+        if(olf){var ola=absPos(olf);ptsOffX=ola.x;ptsOffY=ola.y;}
+      }
+      item.pts=item.pts.map(function(p){return movePt(p,ptsOffX-x1,ptsOffY-y1);});
+      item.d=penPtsToD(item.pts,item.d&&item.d.endsWith('Z'));
+    } else if(isGr2){
+      moveGroupToFrameSpace(item,fr.id);
+    } else {
+      item.x=bb.x-x1;
+      item.y=bb.y-y1;
+    }
+  });
+
+  applyAutoLayout(fr);
+  renderFrame(fr);
+  clearSel();selectEl(fr.id);
+  refreshLayers();snapshot();
+  toast('Auto Layout ⇄ created');
+}
+
 function drawSnapGrid(){
   var r=canvas.getBoundingClientRect();
   snapCvs.width=r.width; snapCvs.height=r.height;
@@ -748,6 +824,7 @@ document.addEventListener('keydown',function(e){
   }
   if((e.key==='g'||e.key==='G')&&!e.ctrlKey&&!e.metaKey){toggleSnap();return;}
   if(e.key==='i'&&!e.ctrlKey&&!e.metaKey){activateEyedropper();return;}
+  if((e.key==='a'||e.key==='A')&&e.shiftKey&&!e.ctrlKey&&!e.metaKey){e.preventDefault();wrapInAutoLayout();return;}
   var map={v:'select',f:'frame',r:'rect',o:'ellipse',l:'line',t:'text',p:'pen',h:'hand'};
   if(map[e.key]&&!e.ctrlKey&&!e.metaKey)setTool(map[e.key]);
   if(e.code==='Space'){e.preventDefault();return;}
@@ -1012,6 +1089,7 @@ function renderEl(el){
 function renderElInto(el,pg,inGroup){
   var old=document.getElementById('g'+el.id);
   var anchor=old?old.nextSibling:null;
+  var anchorParent=old?old.parentNode:null;
   if(old)old.remove();
   var g=ns('g');g.id='g'+el.id;
   var s=null;
@@ -1095,7 +1173,7 @@ function renderElInto(el,pg,inGroup){
       });
     })(el);
   }
-  if(anchor)pg.insertBefore(g,anchor);else pg.appendChild(g);
+  if(anchor&&anchorParent===pg)pg.insertBefore(g,anchor);else pg.appendChild(g);
 }
 
 // ── Z-ORDER ──
@@ -1474,9 +1552,15 @@ function renderGroup(grp){
     }
   });
   // Transparent hit rect for selection/drag
+  // If group is inside a frame, convert absolute bbox to frame-local for hit rect coords
+  var hitX=bb.x,hitY=bb.y;
+  if(grp.frameId){
+    var hpf=S.frames.find(function(f){return f.id===grp.frameId;});
+    if(hpf){var hpfa=absPos(hpf);hitX=bb.x-hpfa.x;hitY=bb.y-hpfa.y;}
+  }
   (function(cap){
     var hit=ns('rect');
-    hit.setAttribute('x',bb.x);hit.setAttribute('y',bb.y);
+    hit.setAttribute('x',hitX);hit.setAttribute('y',hitY);
     hit.setAttribute('width',bb.w||1);hit.setAttribute('height',bb.h||1);
     hit.setAttribute('fill','transparent');hit.setAttribute('stroke','none');
     hit.addEventListener('mousedown',function(e){
@@ -1839,12 +1923,15 @@ function penCommit(close){
      S.penPts[0].y>=ab.y && S.penPts[0].y<=ab.y+f.h) fr=f;
   });
   var frAbs = fr ? absPos(fr) : null;
-  var rx2 = fr ? bx - frAbs.x : bx;
-  var ry2 = fr ? by - frAbs.y : by;
+  // store pts as frame-local when inside a frame (consistent with moveGroupToFrameSpace)
+  var elPts = frAbs
+    ? S.penPts.map(function(p){return movePt(p,-frAbs.x,-frAbs.y);})
+    : S.penPts.map(function(p){return Object.assign({},p);});
+  var elD = frAbs ? penPtsToD(elPts, close) : d;
   var el={id:uid(),type:'path',x:0,y:0,w:bw,h:bh,
           fill:close?S.defFill:'none',stroke:S.defFill,strokeWidth:2,
           opacity:1,fillMode:'solid',gradient:null,rx:0,rotation:0,
-          d:d,pts:S.penPts.map(function(p){return Object.assign({},p);}),
+          d:elD,pts:elPts,
           frameId:fr?fr.id:null,name:'Path '+(S.nid++)};
   S.els.push(el);
   if(fr)fr.children.push(el.id);
