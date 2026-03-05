@@ -993,6 +993,12 @@ function _buildFrameSVG(fr){
 
       var add = e.shiftKey||e.ctrlKey||e.metaKey;
 
+      // Figma-style surface selection: first click on nested frame selects parent frame
+      if(!add && cap.frameId && !isSelected(cap.frameId)){
+        var pf=S.frames.find(function(f){return f.id===cap.frameId;});
+        if(pf){selectEl(cap.frameId);startFrameDrag(pf,svgPt(e));return;}
+      }
+
       var wasMulti = (S.selIds && S.selIds.length>1 && isSelected(cap.id) && !add);
       var preSelIds = wasMulti ? S.selIds.slice() : null;
 
@@ -1015,14 +1021,18 @@ function _buildFrameSVG(fr){
       }
 
       if(!add){
-        var parentFrCheck=cap.frameId?S.frames.find(function(f){return f.id===cap.frameId}):null;
-        if(parentFrCheck&&getAL(parentFrCheck))return;
-        S.dragging=true;S.dragEl=cap;
-        S.dragS={mx:pt.x,my:pt.y,ox:cap.x,oy:cap.y};
+        startFrameDrag(cap,pt);
       }
     });
   })(fr);
   return fg;
+}
+
+function startFrameDrag(fr, pt){
+  var parentFrCheck=fr.frameId?S.frames.find(function(f){return f.id===fr.frameId;}):null;
+  if(parentFrCheck&&getAL(parentFrCheck))return;
+  S.dragging=true;S.dragEl=fr;
+  S.dragS={mx:pt.x,my:pt.y,ox:fr.x,oy:fr.y};
 }
 
 function renderFrame(fr){
@@ -1132,6 +1142,12 @@ function renderElInto(el,pg,inGroup){
   e.stopPropagation();
 
   var add = e.shiftKey||e.ctrlKey||e.metaKey;
+
+  // Figma-style surface selection: first click on child selects parent frame
+  if(!add && cap.frameId && !isSelected(cap.frameId)){
+    var pf=S.frames.find(function(f){return f.id===cap.frameId;});
+    if(pf){selectEl(cap.frameId);startFrameDrag(pf,svgPt(e));return;}
+  }
 
   // ВАЖНО: снять "снапшот" выделения ДО selectEl, иначе оно сбросится
   var wasMulti = (S.selIds && S.selIds.length>1 && isSelected(cap.id) && !add);
@@ -1568,6 +1584,12 @@ function renderGroup(grp){
       e.stopPropagation();
 
       var add = e.shiftKey||e.ctrlKey||e.metaKey;
+
+      // Figma-style surface selection: first click on child group selects parent frame
+      if(!add && cap.frameId && !isSelected(cap.frameId)){
+        var pf=S.frames.find(function(f){return f.id===cap.frameId;});
+        if(pf){selectEl(cap.frameId);startFrameDrag(pf,svgPt(e));return;}
+      }
 
       var wasMulti = (S.selIds && S.selIds.length>1 && isSelected(cap.id) && !add);
       var preSelIds = wasMulti ? S.selIds.slice() : null;
