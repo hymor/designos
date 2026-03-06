@@ -687,6 +687,8 @@ document.addEventListener('keydown',function(e){
   if((e.key==='g'||e.key==='G')&&!e.ctrlKey&&!e.metaKey){toggleSnap();return;}
   if(e.key==='i'&&!e.ctrlKey&&!e.metaKey){activateEyedropper();return;}
   if((e.key==='a'||e.key==='A')&&e.shiftKey&&!e.ctrlKey&&!e.metaKey){e.preventDefault();wrapInAutoLayout();return;}
+  if(e.key==='0'&&!e.ctrlKey&&!e.metaKey){e.preventDefault();zoomTo100();return;}
+  if(e.key==='1'&&!e.ctrlKey&&!e.metaKey){e.preventDefault();zoomToFitAll();return;}
   var map={v:'select',f:'frame',r:'rect',o:'ellipse',l:'line',t:'text',p:'pen',h:'hand'};
   if(map[e.key]&&!e.ctrlKey&&!e.metaKey)setTool(map[e.key]);
   if(e.code==='Space'){e.preventDefault();return;}
@@ -784,6 +786,30 @@ function adjZ(f){
   var r=canvas.getBoundingClientRect(),cx=r.width/2,cy=r.height/2,nz=clamp(S.zoom*f,.05,20);
   S.px=cx-(cx-S.px)*(nz/S.zoom); S.py=cy-(cy-S.py)*(nz/S.zoom); S.zoom=nz;
   applyTr(); drawSel(); S.frames.filter(function(f){return !f.frameId;}).forEach(function(f){renderFrame(f);});
+}
+function zoomTo100(){
+  var r=canvas.getBoundingClientRect();
+  S.zoom=1;
+  S.px=r.width/2; S.py=r.height/2;
+  applyTr(); drawSel(); drawSnapGrid();
+  S.frames.filter(function(f){return !f.frameId;}).forEach(function(f){renderFrame(f);});
+  toast('100%');
+}
+function zoomToFitAll(){
+  var r=canvas.getBoundingClientRect(),pad=40;
+  var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  function addBBox(bb){minX=Math.min(minX,bb.x);minY=Math.min(minY,bb.y);maxX=Math.max(maxX,bb.x+bb.w);maxY=Math.max(maxY,bb.y+bb.h);}
+  S.frames.filter(function(f){return !f.frameId;}).forEach(function(f){addBBox(getBBox(f));});
+  S.els.filter(function(e){return !e.frameId&&!e.groupId;}).forEach(function(e){addBBox(getBBox(e));});
+  S.groups.filter(function(g){return !g.groupId&&!g.frameId;}).forEach(function(g){addBBox(getGroupBBox(g));});
+  var w=maxX-minX,h=maxY-minY;
+  if(!(w>0&&h>0)){zoomTo100();toast('Fit all');return;}
+  var zoomW=(r.width-2*pad)/w,zoomH=(r.height-2*pad)/h;
+  S.zoom=clamp(Math.min(zoomW,zoomH),.05,20);
+  S.px=r.width/2-S.zoom*(minX+w/2); S.py=r.height/2-S.zoom*(minY+h/2);
+  applyTr(); drawSel(); drawSnapGrid();
+  S.frames.filter(function(f){return !f.frameId;}).forEach(function(f){renderFrame(f);});
+  toast('Fit all');
 }
 
 // ── FRAMES ──
