@@ -995,9 +995,8 @@ function _buildFrameSVG(fr){
       var add = e.shiftKey||e.ctrlKey||e.metaKey;
 
       // Figma-style surface selection: first click on nested frame selects parent frame
-      if(!add && cap.frameId && !isSelected(cap.frameId)){
-        var pf=S.frames.find(function(f){return f.id===cap.frameId;});
-        if(pf){selectEl(cap.frameId);startFrameDrag(pf,svgPt(e));return;}
+      if(!add && cap.frameId && getActiveFrameId()!==cap.frameId){
+        selectEl(cap.frameId);return;
       }
 
       var wasMulti = (S.selIds && S.selIds.length>1 && isSelected(cap.id) && !add);
@@ -1145,9 +1144,8 @@ function renderElInto(el,pg,inGroup){
   var add = e.shiftKey||e.ctrlKey||e.metaKey;
 
   // Figma-style surface selection: first click on child selects parent frame
-  if(!add && cap.frameId && !isSelected(cap.frameId)){
-    var pf=S.frames.find(function(f){return f.id===cap.frameId;});
-    if(pf){selectEl(cap.frameId);startFrameDrag(pf,svgPt(e));return;}
+  if(!add && cap.frameId && getActiveFrameId()!==cap.frameId){
+    selectEl(cap.frameId);return;
   }
 
   // ВАЖНО: снять "снапшот" выделения ДО selectEl, иначе оно сбросится
@@ -1323,6 +1321,19 @@ function findAny(id){
 
 function isSelected(id){
   return S.selIds && S.selIds.indexOf(id)>=0;
+}
+// Frame context: the frame the user is currently "inside".
+// Once any child (or the frame itself) is selected, clicks on siblings
+// skip surface selection and go straight to the child — no double-click needed.
+// Context clears when canvas background is clicked (clearSel with no selection).
+function getActiveFrameId(){
+  var ids=(S.selIds&&S.selIds.length)?S.selIds:(S.selId?[S.selId]:[]);
+  for(var i=0;i<ids.length;i++){
+    var item=findAny(ids[i]);if(!item)continue;
+    if(item.frameId)return item.frameId;          // child → parent frame is active
+    if(S.frames.indexOf(item)>=0)return item.id;  // frame selected → it is active
+  }
+  return null;
 }
 
 // Убираем из selection тех, кто вложен в выбранного родителя (group/frame)
@@ -1586,9 +1597,8 @@ function renderGroup(grp){
       var add = e.shiftKey||e.ctrlKey||e.metaKey;
 
       // Figma-style surface selection: first click on child group selects parent frame
-      if(!add && cap.frameId && !isSelected(cap.frameId)){
-        var pf=S.frames.find(function(f){return f.id===cap.frameId;});
-        if(pf){selectEl(cap.frameId);startFrameDrag(pf,svgPt(e));return;}
+      if(!add && cap.frameId && getActiveFrameId()!==cap.frameId){
+        selectEl(cap.frameId);return;
       }
 
       var wasMulti = (S.selIds && S.selIds.length>1 && isSelected(cap.id) && !add);
