@@ -4128,24 +4128,67 @@ function saveProject(){
   var url=URL.createObjectURL(blob);var a=document.createElement('a');a.download='project.designos';a.href=url;a.click();URL.revokeObjectURL(url);toast('Saved ✓');
   var st=document.getElementById('save-status');if(st)st.textContent='Saved';
 }
-function loadProject(json){
+function validateAndRepairProject(data){
+  var frames=data.frames||[],els=data.els||[],groups=data.groups||[];
+  var frameIds={},elIds={},groupIds={};
+  frames.forEach(function(f){frameIds[f.id]=true;});
+  els.forEach(function(e){elIds[e.id]=true;});
+  groups.forEach(function(g){groupIds[g.id]=true;});
+  var allIds=function(id){return frameIds[id]||groupIds[id]||elIds[id];};
+  var repaired=false;
+  frames.forEach(function(fr){
+    if(fr.frameId!=null&&!frameIds[fr.frameId]){fr.frameId=null;repaired=true;}
+    if(fr.children){
+      fr.children=fr.children.filter(function(cid){var ok=allIds(cid);if(!ok)repaired=true;return ok;});
+    }
+  });
+  groups.forEach(function(g){
+    if(g.frameId!=null&&!frameIds[g.frameId]){g.frameId=null;repaired=true;}
+    if(g.groupId!=null&&!groupIds[g.groupId]){g.groupId=null;repaired=true;}
+    if(g.children){
+      g.children=g.children.filter(function(cid){var ok=allIds(cid);if(!ok)repaired=true;return ok;});
+    }
+  });
+  els.forEach(function(el){
+    if(el.frameId!=null&&!frameIds[el.frameId]){el.frameId=null;repaired=true;}
+    if(el.groupId!=null&&!groupIds[el.groupId]){el.groupId=null;repaired=true;}
+  });
+  return repaired;
+}
+function loadProject(json,fileName){
   try{
     var data=JSON.parse(json);
+    if(!data||typeof data!=='object'){toast('Invalid project file');return;}
+    var repaired=validateAndRepairProject(data);
     framesG.innerHTML='';elsLoose.innerHTML='';selOv.innerHTML='';defsEl.innerHTML='';sgG.innerHTML='';
-    S.frames=[];S.els=[];S.groups=[];S.selId=null;S.selIds=[];S.nid=data.nid||1;S.components=data.components||[];activeGradStop=0;
-    S.projId=data.projId||('p'+Date.now());
-    setProjName(data.projName||'Untitled');
-    S.groups=(data.groups||[]).slice();
-    (data.frames||[]).forEach(function(fr){S.frames.push(fr);renderFrame(fr);});
-    (data.els||[]).forEach(function(el){S.els.push(el);if(!el.frameId)renderElInto(el,elsLoose);});
+    S.frames=[];S.els=[];S.groups=[];S.selId=null;S.selIds=[];S.nid=typeof data.nid==='number'?data.nid:1;S.components=Array.isArray(data.components)?data.components:[];activeGradStop=0;
+    if(data.projId){S.projId=data.projId;setProjName(data.projName||'Untitled');}
+    else{S.projId='p'+Date.now();setProjName((fileName&&fileName.replace(/\.(designos|json)$/i,''))||data.projName||'Imported project');}
+    S.groups=Array.isArray(data.groups)?(data.groups||[]).slice():[];
+    (Array.isArray(data.frames)?data.frames:[]).forEach(function(fr){S.frames.push(fr);renderFrame(fr);});
+    (Array.isArray(data.els)?data.els:[]).forEach(function(el){S.els.push(el);if(!el.frameId)renderElInto(el,elsLoose);});
     S.frames.filter(function(fr){return !fr.frameId;}).forEach(function(fr){if(getAL(fr)){applyAutoLayout(fr);}renderFrame(fr);});
-    refreshLayers();refreshProps();refreshCompPanel();snapshot();toast('Project loaded ✓');
+    refreshLayers();refreshProps();refreshCompPanel();snapshot();
+    if(!data.projId){
+      var payload=JSON.stringify({version:8,projId:S.projId,projName:S.projName,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components});
+      var saved=false;
+      for(var attempt=0;attempt<4;attempt++){
+        try{localStorage.setItem('dos_proj_'+S.projId,payload);saved=true;break;}catch(e){
+          if(attempt<3){var list=[];try{list=JSON.parse(localStorage.getItem('dos_projects')||'[]');}catch(e2){}
+            if(list.length>1){var old=list.pop();localStorage.removeItem('dos_proj_'+old.id);try{localStorage.setItem('dos_projects',JSON.stringify(list));}catch(e3){}}else break;}
+          else{toast('Storage full — use Save to download file');break;}
+        }
+      }
+      if(saved){addCurrentToRecentList();}
+      doAutoSave();
+    }
+    toast(repaired?'Project loaded (invalid references repaired)':'Project loaded ✓');
     var st=document.getElementById('save-status');if(st)st.textContent='Saved';
   }catch(err){console.error(err);toast('Failed to load');}
 }
 document.getElementById('save-btn').addEventListener('click',saveProject);
 document.getElementById('load-btn').addEventListener('click',function(){document.getElementById('proj-input').click();});
-document.getElementById('proj-input').addEventListener('change',function(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){loadProject(ev.target.result);};reader.readAsText(file);e.target.value='';});
+document.getElementById('proj-input').addEventListener('change',function(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){loadProject(ev.target.result,file.name);};reader.readAsText(file);e.target.value='';});
 
 // ── AUTO-SAVE & PROJECTS ──
 var _autoSaveTimer=null;
@@ -4168,7 +4211,13 @@ function doAutoSave(){
   if(!S.projId) S.projId='p'+Date.now();
   var data={version:8,projId:S.projId,projName:S.projName,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components};
   var json=JSON.stringify(data);
-  try{localStorage.setItem('dos_proj_'+S.projId,json);}catch(e){return;}
+  for(var attempt=0;attempt<4;attempt++){
+    try{localStorage.setItem('dos_proj_'+S.projId,json);break;}catch(e){
+      if(attempt<3){var list=[];try{list=JSON.parse(localStorage.getItem('dos_projects')||'[]');}catch(e2){}
+        if(list.length>1){var old=list.pop();localStorage.removeItem('dos_proj_'+old.id);try{localStorage.setItem('dos_projects',JSON.stringify(list));}catch(e3){}}else return;}
+      else return;
+    }
+  }
   var list=[];
   try{list=JSON.parse(localStorage.getItem('dos_projects')||'[]');}catch(e){}
   list=list.filter(function(p){return p.id!==S.projId;});
@@ -4225,6 +4274,7 @@ function showRecent(){
   } else {
     list.forEach(function(p){
       var card=document.createElement('div');card.className='recent-card';
+      card.setAttribute('data-project-id',p.id);
       var isCurrent=p.id===S.projId;
       if(isCurrent)card.style.borderColor='var(--accent)';
       var thumbHtml=p.thumb
@@ -4237,23 +4287,33 @@ function showRecent(){
         '<div class="recent-card-body">'+
           '<div class="recent-card-name">'+
             escHtml(p.name||'Untitled')+
-            '<button class="recent-card-del" data-id="'+escHtml(p.id)+'" title="Delete">&#x2715;</button>'+
+            '<button type="button" class="recent-card-del" title="Delete">&#x2715;</button>'+
           '</div>'+
           '<div class="recent-card-date">'+dateStr+(isCurrent?' · open':'')+'</div>'+
         '</div>';
-      card.addEventListener('click',function(e){
-        if(e.target.closest('.recent-card-del'))return;
-        loadProjFromLS(p.id);
-      });
-      card.querySelector('.recent-card-del').addEventListener('click',function(e){
-        e.stopPropagation();deleteProjFromLS(p.id,card);
-      });
       grid.appendChild(card);
     });
+    grid.onclick=function(e){
+      var card=e.target.closest('.recent-card');
+      if(!card)return;
+      var id=card.getAttribute('data-project-id');
+      if(!id)return;
+      if(e.target.closest('.recent-card-del')){e.preventDefault();e.stopPropagation();deleteProjFromLS(id,card);return;}
+      loadProjFromLS(id);
+    };
   }
   modal.style.display='flex';
 }
 function hideRecent(){document.getElementById('recent-modal').style.display='none';}
+function addCurrentToRecentList(){
+  if(!S.projId)return;
+  var list=[];
+  try{list=JSON.parse(localStorage.getItem('dos_projects')||'[]');}catch(e){}
+  list=list.filter(function(p){return p.id!==S.projId;});
+  list.unshift({id:S.projId,name:S.projName,savedAt:Date.now(),thumb:null});
+  if(list.length>20)list.length=20;
+  try{localStorage.setItem('dos_projects',JSON.stringify(list));localStorage.setItem('dos_last',S.projId);}catch(e){}
+}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function loadProjFromLS(id){
   var json=localStorage.getItem('dos_proj_'+id);
