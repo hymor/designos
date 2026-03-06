@@ -889,6 +889,7 @@ function buildGradDef(el){
   return'url(#grad'+el.id+')';
 }
 function fillVal(el){
+  if(el.fillVisible===false)return 'none';
   if(el.fillMode==='linear'||el.fillMode==='radial')return buildGradDef(el)||el.fill;
   return el.fill;
 }
@@ -1264,7 +1265,10 @@ function renderElInto(el,pg,inGroup){
   }
   if(s){
     var align=(el.strokeAlign||'center');
-    var hasStroke=el.stroke&&el.stroke!=='none'&&(el.strokeWidth||0)>0;
+    var strokeVisible=el.strokeVisible!==false;
+    var effectiveStroke=strokeVisible?(el.stroke||'none'):'none';
+    var effectiveSw=strokeVisible?(el.strokeWidth||0):0;
+    var hasStroke=el.stroke&&el.stroke!=='none'&&(el.strokeWidth||0)>0&&strokeVisible;
     var useStrokeAlign=hasStroke&&(align==='inside'||align==='outside')&&(el.type==='rect'||el.type==='ellipse'||el.type==='path');
     if(useStrokeAlign){
       var sw=el.strokeWidth||0;
@@ -1291,12 +1295,12 @@ function renderElInto(el,pg,inGroup){
       sFill.setAttribute('fill',fillVal(el));sFill.setAttribute('stroke','none');sFill.setAttribute('stroke-width',0);sFill.setAttribute('opacity',el.opacity!=null?el.opacity:1);
       g.appendChild(sFill);
       var sStroke=s.cloneNode(true);
-      sStroke.setAttribute('fill','none');sStroke.setAttribute('stroke',el.stroke);sStroke.setAttribute('stroke-width',el.strokeWidth);
+      sStroke.setAttribute('fill','none');sStroke.setAttribute('stroke',effectiveStroke);sStroke.setAttribute('stroke-width',effectiveSw);
       sStroke.setAttribute('opacity',el.opacity!=null?el.opacity:1);
       sStroke.setAttribute('mask','url(#'+mid.id+')');
       g.appendChild(sStroke);
     } else {
-      if(el.type!=='image'){s.setAttribute('fill',fillVal(el));s.setAttribute('stroke',el.stroke);s.setAttribute('stroke-width',el.strokeWidth);}
+      if(el.type!=='image'){s.setAttribute('fill',fillVal(el));s.setAttribute('stroke',effectiveStroke);s.setAttribute('stroke-width',effectiveSw);}
       s.setAttribute('opacity',el.opacity!=null?el.opacity:1);
       g.appendChild(s);
     }
@@ -4094,9 +4098,18 @@ function refreshProps(){
       h+='<button class="fill-mode-btn'+(fm==='radial'?' on':'')+'" data-mode="radial">Radial</button></div>';
     }
     if(fm==='solid'||isF||isLine){
+      var hasFill=T.fill&&T.fill!=='none';
+      var fillVis=T.fillVisible!==false;
       var fbg=T.fill==='none'?'transparent':T.fill;
-      h+='<div class="pr"><div class="csw" style="background:'+fbg+'"><input type="color" id="ppfill" value="'+(T.fill==='none'?'#7b61ff':T.fill)+'"/></div>';
-      h+='<input class="pi" id="ppfillhex" value="'+T.fill+'"/></div>';
+      if(!hasFill){
+        h+='<div class="pr"><button type="button" class="preset-btn" id="pp-fill-add" style="width:100%">+ Add fill</button></div>';
+      } else {
+        h+='<div class="pr">';
+        h+='<div class="csw" style="background:'+fbg+'"><input type="color" id="ppfill" value="'+(T.fill==='none'?'#7b61ff':T.fill)+'"/></div>';
+        h+='<input class="pi" id="ppfillhex" value="'+T.fill+'"/>';
+        h+='<button type="button" class="tbtn pp-fill-vis" title="'+(fillVis?'Hide fill':'Show fill')+'" style="flex-shrink:0;opacity:'+(fillVis?'1':'0.4')+'">\u{1F441}</button>';
+        h+='<button type="button" class="tbtn pp-fill-remove" title="Remove fill" style="flex-shrink:0">\u2212</button></div>';
+      }
     } else {
       var grad=T.gradient||(T.gradient=defGrad(fm));grad.type=fm;
       h+='<div class="grad-bar" id="grad-bar" style="background:'+gradCSS(grad)+'">';
@@ -4119,13 +4132,23 @@ function refreshProps(){
   }
   if(isImg){h+='<div class="ps"><div class="ps-t">Image</div><div class="img-drop" id="img-rd">Click or drop to replace<input type="file" id="img-ri" accept="image/*"/></div></div>';}
   if(!isF&&!isTxt&&!isImg){
+    var hasStroke=T.stroke&&T.stroke!=='none'&&(T.strokeWidth||0)>0;
     var sbg=T.stroke==='none'?'transparent':T.stroke;
     var salign=T.strokeAlign||'center';
-    h+='<div class="ps"><div class="ps-t">Stroke</div><div class="pr">';
-    h+='<div class="csw" style="background:'+sbg+'"><input type="color" id="ppstroke" value="'+(T.stroke==='none'?'#ffffff':T.stroke)+'"/></div>';
-    h+='<input class="pi" id="ppstrokehex" value="'+T.stroke+'"/></div>';
-    h+='<div class="pr" style="margin-top:6px"><span class="pl">W</span><input class="pi" id="ppsw" type="number" value="'+T.strokeWidth+'" min="0"/></div>';
-    h+='<div class="pr" style="margin-top:6px"><span class="pl">Pos</span><div class="g2" style="flex:1"><button type="button" class="preset-btn pp-stroke-align" data-align="inside" '+(salign==='inside'?' style="border-color:var(--accent);color:var(--accent)"':'')+'>Inside</button><button type="button" class="preset-btn pp-stroke-align" data-align="center" '+(salign==='center'?' style="border-color:var(--accent);color:var(--accent)"':'')+'>Center</button><button type="button" class="preset-btn pp-stroke-align" data-align="outside" '+(salign==='outside'?' style="border-color:var(--accent);color:var(--accent)"':'')+'>Outside</button></div></div></div>';
+    var strokeVis=T.strokeVisible!==false;
+    h+='<div class="ps"><div class="ps-t">Stroke</div>';
+    if(!hasStroke){
+      h+='<div class="pr"><button type="button" class="preset-btn" id="pp-stroke-add" style="width:100%">+ Add stroke</button></div>';
+    } else {
+      h+='<div class="pr">';
+      h+='<div class="csw" style="background:'+sbg+'"><input type="color" id="ppstroke" value="'+(T.stroke==='none'?'#ffffff':T.stroke)+'"/></div>';
+      h+='<input class="pi" id="ppstrokehex" value="'+T.stroke+'"/>';
+      h+='<button type="button" class="tbtn pp-stroke-vis" title="'+(strokeVis?'Hide stroke':'Show stroke')+'" style="flex-shrink:0;opacity:'+(strokeVis?'1':'0.4')+'">\u{1F441}</button>';
+      h+='<button type="button" class="tbtn pp-stroke-remove" title="Remove stroke" style="flex-shrink:0">\u2212</button></div>';
+      h+='<div class="pr" style="margin-top:6px"><span class="pl">W</span><input class="pi" id="ppsw" type="number" value="'+T.strokeWidth+'" min="0"/></div>';
+      h+='<div class="pr" style="margin-top:6px"><span class="pl">Pos</span><div class="g2" style="flex:1"><button type="button" class="preset-btn pp-stroke-align" data-align="inside" '+(salign==='inside'?' style="border-color:var(--accent);color:var(--accent)"':'')+'>Inside</button><button type="button" class="preset-btn pp-stroke-align" data-align="center" '+(salign==='center'?' style="border-color:var(--accent);color:var(--accent)"':'')+'>Center</button><button type="button" class="preset-btn pp-stroke-align" data-align="outside" '+(salign==='outside'?' style="border-color:var(--accent);color:var(--accent)"':'')+'>Outside</button></div></div>';
+    }
+    h+='</div>';
   }
   if(isTxt){
     h+='<div class="ps"><div class="ps-t">Typography</div>';
@@ -4166,9 +4189,25 @@ function refreshProps(){
   bind('pp-rot-n',function(e){setRot(+e.target.value);snapshot();});
   bind('ppfill',function(e){T.fill=e.target.value;rr();var h=document.getElementById('ppfillhex');if(h)h.value=e.target.value;e.target.parentElement.style.background=e.target.value;snapshot();});
   bind('ppfillhex',function(e){T.fill=e.target.value;rr();snapshot();});
+  var addFillBtn=document.getElementById('pp-fill-add');
+  if(addFillBtn)addFillBtn.addEventListener('click',function(){T.fill=S.defFill||'#7b61ff';T.fillVisible=true;rr();refreshProps();snapshot();});
+  document.querySelectorAll('.pp-fill-vis').forEach(function(btn){
+    btn.addEventListener('click',function(){T.fillVisible=!T.fillVisible;rr();refreshProps();snapshot();});
+  });
+  document.querySelectorAll('.pp-fill-remove').forEach(function(btn){
+    btn.addEventListener('click',function(){T.fill='none';rr();refreshProps();snapshot();});
+  });
   bind('ppstroke',function(e){T.stroke=e.target.value;renderEl(T);var h=document.getElementById('ppstrokehex');if(h)h.value=e.target.value;e.target.parentElement.style.background=e.target.value;snapshot();});
   bind('ppstrokehex',function(e){T.stroke=e.target.value;renderEl(T);snapshot();});
   bind('ppsw',function(e){T.strokeWidth=Math.max(0,+e.target.value);renderEl(T);snapshot();});
+  var addStrokeBtn=document.getElementById('pp-stroke-add');
+  if(addStrokeBtn)addStrokeBtn.addEventListener('click',function(){T.stroke=S.defFill||'#000000';T.strokeWidth=T.type==='line'?2:Math.max(1,(T.strokeWidth||0))||2;T.strokeVisible=true;T.strokeAlign=T.strokeAlign||'center';renderEl(T);refreshProps();snapshot();});
+  document.querySelectorAll('.pp-stroke-vis').forEach(function(btn){
+    btn.addEventListener('click',function(){T.strokeVisible=!T.strokeVisible;renderEl(T);refreshProps();snapshot();});
+  });
+  document.querySelectorAll('.pp-stroke-remove').forEach(function(btn){
+    btn.addEventListener('click',function(){T.stroke='none';T.strokeWidth=0;renderEl(T);refreshProps();snapshot();});
+  });
   document.querySelectorAll('.pp-stroke-align').forEach(function(btn){
     btn.addEventListener('click',function(){
       T.strokeAlign=btn.dataset.align;
