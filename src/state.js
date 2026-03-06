@@ -52,7 +52,8 @@ export const S = {
   components: [],
   smartGuides: true,
   projId: null,
-  projName: 'Untitled'
+  projName: 'Untitled',
+  collapsedFrames: {}  // frameId -> true when frame is collapsed in layers tree
 };
 
 function getDom() {

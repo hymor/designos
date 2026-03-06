@@ -3642,6 +3642,7 @@ function refreshLayers(){
   }
   function addFrame(fr,depth){
     items.push({type:'frame',obj:fr,depth:depth});
+    if(S.collapsedFrames[fr.id])return;
     [].concat(fr.children).reverse().forEach(function(cid){
       var cg3=S.groups.find(function(g){return g.id===cid});
       if(cg3){addGroup(cg3,depth+1);return;}
@@ -3665,8 +3666,27 @@ function refreshLayers(){
     var indent=(item.depth||0)*14+14;
     d.style.paddingLeft=indent+'px';
     var badge=isComp?'<span class="comp-badge">✦ C</span>':isInst?'<span class="inst-badge">⬡ I</span>':isGrp?(isMask?'<span class="mask-badge">⬡ Mask</span>':'<span class="group-badge">⊞ G</span>'):'';
-    d.innerHTML='<span class="li-icon">'+(ICONS[item.obj.type]||'◻')+'</span><span>'+item.obj.name+'</span>'+badge;
-    (function(id){d.addEventListener('click',function(e){selectEl(id,e.shiftKey||e.ctrlKey||e.metaKey);setTool('select');});})(item.obj.id);
+    var hasKids=isF&&item.obj.children&&item.obj.children.length>0;
+    var collapsed=hasKids&&!!S.collapsedFrames[item.obj.id];
+    if(isF){
+      var foldSpan=document.createElement('span');
+      foldSpan.className='li-fold-wrap';
+      if(hasKids){
+        var fold=document.createElement('span');
+        fold.className='li-fold';
+        fold.title=collapsed?'Expand':'Collapse';
+        fold.textContent=collapsed?'\u25B6':'\u25BC';
+        fold.dataset.frameId=item.obj.id;
+        fold.addEventListener('click',function(e){e.stopPropagation();var fid=e.currentTarget.dataset.frameId;S.collapsedFrames[fid]=!S.collapsedFrames[fid];refreshLayers();});
+        foldSpan.appendChild(fold);
+      }
+      d.appendChild(foldSpan);
+    }
+    var rest=document.createElement('span');
+    rest.className='li-rest';
+    rest.innerHTML=('<span class="li-icon">'+(ICONS[item.obj.type]||'◻')+'</span><span>'+item.obj.name+'</span>'+badge);
+    d.appendChild(rest);
+    (function(id){d.addEventListener('click',function(e){if(e.target.closest('.li-fold'))return;selectEl(id,e.shiftKey||e.ctrlKey||e.metaKey);setTool('select');});})(item.obj.id);
     layersDiv.appendChild(d);
   });
 }
