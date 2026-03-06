@@ -1,6 +1,7 @@
 # Devlog
 
 ## 2026-03-06
++ fill and stroke now can be hidden, removed or added to object
 + stroke variants added: inside, outside, center
 + for bounding box around the object
 + fixes for vector editing

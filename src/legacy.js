@@ -1,56 +1,17 @@
 // DesignOS v6 — Undo/Redo · Corner Radius · Snap to Grid
 // Architecture: frames use translate(x,y) transform so children (relative coords) follow automatically.
 
-var S={
-  tool:'select', els:[], frames:[], selId:null, selIds:[], nid:1,
-  zoom:1, px:0, py:0,
-  drawing:false, ds:null, frameDraw:false,
-  panning:false, panS:null,
-  dragging:false, dragEl:null, dragS:null,
-  resizing:false, resDir:null, resEl:null, resS:null,
-  bandSel:false, bandStart:null,
-  clipboard:[], pasteOff:0,
-  history:[], histIdx:-1,
-  snap:true, snapSz:8,
-  defFill:'#7b61ff',
-  bandAdd:false,
-  dragMulti:null, // { ids:[], start:{mx,my}, orig:{id:{absX,absY,frameId,type}}, primaryId, lastDx,lastDy }
-  rotating:false, rotEl:null, rotS:null,
-  groups:[],
-  swapSrc:null,
-  penPts:[], penActive:false, penElId:null,
-  penEditId:null, penEditSelNode:-1, penEditDragNodeIdx:-1, penEditDragStart:null,
-  penEditDragHandleNode:-1, penEditDragHandleSide:'', penEditDragMoved:false,
-  penEditPathCenter:null,
-  components:[],  // {id, name, sourceId, data:{...}}  (master definitions)
-  smartGuides:true,
-  projId:null,
-  projName:'Untitled'
-};
+import { S, dom } from './state.js';
+import { ns, clamp, deep, uid, movePt, toast, svgPt, snapV, snapPt } from './utils.js';
+import { createUndo } from './undo.js';
+import { createSmartGuides } from './smartGuides.js';
+import { createFrameTree } from './frameTree.js';
+import { createSnapGrid } from './snapGrid.js';
+import { createGradients } from './gradients.js';
 
-var canvas   = document.getElementById('canvas');
-var defsEl   = document.getElementById('defs');
-var framesG  = document.getElementById('frames-g');
-var elsLoose = document.getElementById('els-loose');
-var selOv    = document.getElementById('sel-ov');
-var sgG      = document.getElementById('smart-guides-g');
-var ghost    = document.getElementById('ghost');
-var fghost   = document.getElementById('fghost');
-var ted      = document.getElementById('ted');
-var layersDiv= document.getElementById('layers');
-var propsDiv = document.getElementById('props');
-var bandRect = document.getElementById('band-rect');
-var snapCvs  = document.getElementById('snap-grid');
+const { canvas, defsEl, framesG, elsLoose, selOv, sgG, ghost, fghost, ted, layersDiv, propsDiv, bandRect, snapCvs } = dom;
 
-// ── UTILS ──
-function ns(t){return document.createElementNS('http://www.w3.org/2000/svg',t)}
-function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
-function uid(){return 'e'+(S.nid++)}
-function deep(o){return JSON.parse(JSON.stringify(o))}
-function svgPt(e){var r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left-S.px)/S.zoom,y:(e.clientY-r.top-S.py)/S.zoom}}
-function snapV(v){return S.snap?Math.round(v/S.snapSz)*S.snapSz:v}
-function snapPt(p){return{x:snapV(p.x),y:snapV(p.y)}}
-function movePt(p,dx,dy){var n={x:p.x+dx,y:p.y+dy};if(p.type)n.type=p.type;if(p.cx1!=null){n.cx1=p.cx1+dx;n.cy1=p.cy1+dy;}if(p.cx2!=null){n.cx2=p.cx2+dx;n.cy2=p.cy2+dy;}return n;}
+// ── UTILS (from state/utils) ──
 function absPos(el){
   if(el.frameId){var f=S.frames.find(function(f){return f.id===el.frameId});if(f){var fp=absPos(f);return{x:fp.x+el.x,y:fp.y+el.y};}}
   return{x:el.x,y:el.y};
@@ -179,23 +140,8 @@ function applyTr(){
   document.getElementById('zoom-val').textContent=Math.round(S.zoom*100)+'%';
   drawSnapGrid();
 }
-function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._x);t._x=setTimeout(function(){t.classList.remove('show')},2200)}
 
 // ── UNDO / REDO ──
-var MAX_HIST=60;
-function snapshot(){
-  S.history=S.history.slice(0,S.histIdx+1);
-  S.history.push(JSON.stringify({frames:S.frames,els:S.els,nid:S.nid,components:S.components}));
-  if(S.history.length>MAX_HIST)S.history.shift();
-  S.histIdx=S.history.length-1;
-  refreshUndoUI();
-  scheduleAutoSave();
-}
-function refreshUndoUI(){
-  var u=document.getElementById('undo-btn'),r=document.getElementById('redo-btn');
-  if(u)u.classList.toggle('dim',S.histIdx<=0);
-  if(r)r.classList.toggle('dim',S.histIdx>=S.history.length-1);
-}
 function applyHistSnap(idx){
   var d=JSON.parse(S.history[idx]);
   framesG.innerHTML=''; elsLoose.innerHTML=''; selOv.innerHTML=''; defsEl.innerHTML=''; sgG.innerHTML='';
@@ -204,110 +150,24 @@ function applyHistSnap(idx){
   S.els.filter(function(e){return !e.frameId}).forEach(function(e){renderElInto(e,elsLoose);});
   refreshLayers(); refreshProps(); refreshCompPanel();
 }
-function undo(){if(S.histIdx<=0)return;S.histIdx--;applyHistSnap(S.histIdx);refreshUndoUI();toast('Undo')}
-function redo(){if(S.histIdx>=S.history.length-1)return;S.histIdx++;applyHistSnap(S.histIdx);refreshUndoUI();toast('Redo')}
-document.getElementById('undo-btn').addEventListener('click',undo);
-document.getElementById('redo-btn').addEventListener('click',redo);
+var _undoApi=createUndo(S,dom,{applyHistSnap,toast});
+function snapshot(){_undoApi.snapshot();scheduleAutoSave();}
+var refreshUndoUI=_undoApi.refreshUndoUI,undo=_undoApi.undo,redo=_undoApi.redo;
 
 // ── SMART GUIDES ──
-var GUIDE_THRESH=6; // snap distance in canvas px (before zoom)
-function clearGuides(){sgG.innerHTML='';}
-function drawGuide(x1,y1,x2,y2){
-  var l=ns('line');
-  l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);
-  l.setAttribute('stroke','#ff4ecb');l.setAttribute('stroke-width',1/S.zoom);
-  l.setAttribute('stroke-dasharray','4/'+S.zoom+',3/'+S.zoom);
-  l.setAttribute('pointer-events','none');
-  sgG.appendChild(l);
-}
-// Returns snap delta and adds guide lines. el = item being dragged. ax,ay = proposed absolute position.
-function applySmartGuides(el,ax,ay){
-  clearGuides();
-  if(!S.smartGuides)return{dx:0,dy:0};
-  var ew=el.w,eh=el.h;
-  // edges of dragging element
-  var eL=ax,eR=ax+ew,eCx=ax+ew/2,eT=ay,eB=ay+eh,eCy=ay+eh/2;
-  // collect all other items' edges
-  var others=[];
-  S.frames.forEach(function(f){if(f.id!==el.id&&f.id!==(el.frameId||'__'))others.push(getBBox(f));});
-  S.els.filter(function(e){return e.id!==el.id&&!e.frameId}).forEach(function(e){others.push(getBBox(e));});
-  var thresh=GUIDE_THRESH/S.zoom;
-  var dxBest=null,dyBest=null;
-  var guides=[];
-  others.forEach(function(ob){
-    var oL=ob.x,oR=ob.x+ob.w,oCx=ob.x+ob.w/2,oT=ob.y,oB=ob.y+ob.h,oCy=ob.y+ob.h/2;
-    // X snapping: left-left, right-right, center-center, left-right, right-left
-    var xPairs=[
-      {src:eL,tgt:oL,delta:oL-eL},
-      {src:eR,tgt:oR,delta:oR-eR},
-      {src:eCx,tgt:oCx,delta:oCx-eCx},
-      {src:eL,tgt:oR,delta:oR-eL},
-      {src:eR,tgt:oL,delta:oL-eR}
-    ];
-    xPairs.forEach(function(xp){
-      if(Math.abs(xp.delta)<thresh){
-        if(dxBest===null||Math.abs(xp.delta)<Math.abs(dxBest)){dxBest=xp.delta;}
-        guides.push({type:'v',x:xp.tgt,y1:Math.min(eT,oT),y2:Math.max(eB,oB)});
-      }
-    });
-    var yPairs=[
-      {src:eT,tgt:oT,delta:oT-eT},
-      {src:eB,tgt:oB,delta:oB-eB},
-      {src:eCy,tgt:oCy,delta:oCy-eCy},
-      {src:eT,tgt:oB,delta:oB-eT},
-      {src:eB,tgt:oT,delta:oT-eB}
-    ];
-    yPairs.forEach(function(yp){
-      if(Math.abs(yp.delta)<thresh){
-        if(dyBest===null||Math.abs(yp.delta)<Math.abs(dyBest)){dyBest=yp.delta;}
-        guides.push({type:'h',y:yp.tgt,x1:Math.min(eL,oL),x2:Math.max(eR,oR)});
-      }
-    });
-  });
-  var result={dx:dxBest||0,dy:dyBest||0};
-  // Draw guides after snapping
-  var finalL=ax+(dxBest||0),finalT=ay+(dyBest||0);
-  var finalR=finalL+ew,finalB=finalT+eh,finalCx=finalL+ew/2,finalCy=finalT+eh/2;
-  guides.forEach(function(g){
-    if(g.type==='v'&&dxBest!==null){
-      drawGuide(g.x,g.y1-20,g.x,g.y2+20);
-    }
-    if(g.type==='h'&&dyBest!==null){
-      drawGuide(g.x1-20,g.y,g.x2+20,g.y);
-    }
-  });
-  return result;
-}
-function findFrame(id){ return S.frames.find(f=>f.id===id); }
-function findEl(id){ return S.els.find(e=>e.id===id); }
-function isFrameId(id){ return !!findFrame(id); }
-function isElId(id){ return !!findEl(id); }
+var _sg=createSmartGuides({getBBox,ns});
+var applySmartGuides=_sg.applySmartGuides,clearGuides=_sg.clearGuides;
 
-function removeDomForItem(id){
-  // frame group or element group
-  const fg = document.getElementById('fg'+id);
-  if(fg) fg.remove();
-  const g = document.getElementById('g'+id);
-  if(g) g.remove();
-  const cp = document.getElementById('clip'+id);
-  if(cp) cp.remove();
-}
+// ── FRAME TREE (find/remove) ──
+var _ft=createFrameTree(S);
+var findFrame=_ft.findFrame,findEl=_ft.findEl,isFrameId=_ft.isFrameId,isElId=_ft.isElId;
+var removeDomForItem=_ft.removeDomForItem,removeSubtreeOfFrame=_ft.removeSubtreeOfFrame;
 
-function removeSubtreeOfFrame(frame){
-  // deletes children objects (frames + els) referenced by frame.children recursively
-  (frame.children||[]).forEach(cid=>{
-    if(isFrameId(cid)){
-      const cf = findFrame(cid);
-      if(cf) removeSubtreeOfFrame(cf);
-      S.frames = S.frames.filter(f=>f.id!==cid);
-      removeDomForItem(cid);
-    } else if(isElId(cid)){
-      S.els = S.els.filter(e=>e.id!==cid);
-      removeDomForItem(cid);
-    }
-  });
-  frame.children = [];
-}
+var _snapGrid=createSnapGrid({toast});
+var drawSnapGrid=_snapGrid.drawSnapGrid;
+
+var _grad=createGradients({ns});
+var buildGradDef=_grad.buildGradDef,defGrad=_grad.defGrad,hexToRgba=_grad.hexToRgba,gradCSS=_grad.gradCSS;
 
 function cloneFrameTree(masterFrame, newAbsX, newAbsY, parentFrameId, componentSourceId){
   // Create frame instance (root or nested)
@@ -843,68 +703,11 @@ function wrapInAutoLayout(){
   toast('Auto Layout ⇄ created');
 }
 
-function drawSnapGrid(){
-  var r=canvas.getBoundingClientRect();
-  snapCvs.width=r.width; snapCvs.height=r.height;
-  snapCvs.style.width=r.width+'px'; snapCvs.style.height=r.height+'px';
-  var ctx=snapCvs.getContext('2d');
-  ctx.clearRect(0,0,r.width,r.height);
-  if(!S.snap)return;
-  var gs=S.snapSz*S.zoom;
-  var ox=((S.px%gs)+gs)%gs, oy=((S.py%gs)+gs)%gs;
-  ctx.strokeStyle='rgba(255,255,255,0.055)'; ctx.lineWidth=1;
-  for(var x=ox-gs;x<r.width+gs;x+=gs){ctx.beginPath();ctx.moveTo(Math.round(x)+.5,0);ctx.lineTo(Math.round(x)+.5,r.height);ctx.stroke();}
-  for(var y=oy-gs;y<r.height+gs;y+=gs){ctx.beginPath();ctx.moveTo(0,Math.round(y)+.5);ctx.lineTo(r.width,Math.round(y)+.5);ctx.stroke();}
-}
-function toggleSnap(){
-  S.snap=!S.snap;
-  var b=document.getElementById('snap-btn');
-  if(b)b.classList.toggle('active',S.snap);
-  drawSnapGrid();
-  toast(S.snap?'Snap ON ('+S.snapSz+'px grid)':'Snap OFF');
-}
-document.getElementById('snap-btn').addEventListener('click',toggleSnap);
-
-// ── GRADIENT HELPERS ──
-function buildGradDef(el){
-  var old=document.getElementById('grad'+el.id);if(old)old.remove();
-  if(!el.gradient||el.fillMode==='solid')return null;
-  var g;
-  if(el.gradient.type==='linear'){
-    g=ns('linearGradient');
-    var a=(el.gradient.angle||0)*Math.PI/180;
-    g.setAttribute('x1',.5-.5*Math.cos(a)); g.setAttribute('y1',.5-.5*Math.sin(a));
-    g.setAttribute('x2',.5+.5*Math.cos(a)); g.setAttribute('y2',.5+.5*Math.sin(a));
-  } else {
-    g=ns('radialGradient');g.setAttribute('cx','50%');g.setAttribute('cy','50%');g.setAttribute('r','50%');
-  }
-  g.id='grad'+el.id; g.setAttribute('gradientUnits','objectBoundingBox');
-  (el.gradient.stops||[]).forEach(function(st){
-    var s=ns('stop');s.setAttribute('offset',(st.pos*100)+'%');
-    s.setAttribute('stop-color',st.color);
-    s.setAttribute('stop-opacity',st.opacity!=null?st.opacity:1);
-    g.appendChild(s);
-  });
-  defsEl.appendChild(g);
-  return'url(#grad'+el.id+')';
-}
+// ── GRADIENT (buildGradDef, defGrad, hexToRgba, gradCSS in gradients.js) ──
 function fillVal(el){
   if(el.fillVisible===false)return 'none';
   if(el.fillMode==='linear'||el.fillMode==='radial')return buildGradDef(el)||el.fill;
   return el.fill;
-}
-function defGrad(type,c1,c2){return{type:type,angle:90,stops:[{pos:0,color:c1||'#7b61ff'},{pos:1,color:c2||'#3ecf8e'}]}}
-function hexToRgba(hex,op){
-  var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-  return'rgba('+r+','+g+','+b+','+(op!=null?op:1)+')';
-}
-function gradCSS(g){
-  if(!g||!g.stops||!g.stops.length)return'#7b61ff';
-  var s=g.stops.map(function(st){
-    var c=(st.opacity!=null&&st.opacity<1)?hexToRgba(st.color,st.opacity):st.color;
-    return c+' '+(st.pos*100)+'%';
-  }).join(',');
-  return g.type==='radial'?'radial-gradient(circle,'+s+')':'linear-gradient('+(g.angle||0)+'deg,'+s+')';
 }
 
 // ── TOOLS ──
