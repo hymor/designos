@@ -1,6 +1,9 @@
 # Devlog
 
 ## 2026-03-06
++ modules are extracted from legacy.js
++ now frames can be folded\unfolded
++ added shortcuts 0-100% and 1 - whole artboard
 + fill and stroke now can be hidden, removed or added to object
 + stroke variants added: inside, outside, center
 + for bounding box around the object

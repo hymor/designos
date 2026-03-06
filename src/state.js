@@ -43,12 +43,14 @@ export const S = {
   penElId: null,
   penEditId: null,
   penEditSelNode: -1,
+  penEditSelNodes: [],  // multi-selection of path nodes (indices)
   penEditDragNodeIdx: -1,
   penEditDragStart: null,
   penEditDragHandleNode: -1,
   penEditDragHandleSide: '',
   penEditDragMoved: false,
   penEditPathCenter: null,
+  penEditMarquee: null,  // { x1, y1, x2, y2, addToSel } when dragging selection box
   components: [],
   smartGuides: true,
   projId: null,
