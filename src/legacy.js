@@ -861,8 +861,17 @@ document.getElementById('t-eyedropper').addEventListener('click',function(){
 });
 
 // ── KEYBOARD ──
+function isEditingInput(){
+  var a=document.activeElement;
+  if(!a)return false;
+  var tag=(a.tagName||'').toUpperCase();
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return true;
+  if(a.isContentEditable)return true;
+  return false;
+}
 document.addEventListener('keydown',function(e){
   if(e.target===ted)return;
+  if(isEditingInput())return;
   if(e.code==='Space'&&!e.repeat&&!e.ctrlKey&&!e.metaKey&&S.tool!=='hand'){
     e.preventDefault();
     S._spacePan=true;
@@ -921,6 +930,7 @@ document.addEventListener('keydown',function(e){
 });
 document.addEventListener('keyup',function(e){
   if(e.target===ted)return;
+  if(isEditingInput())return;
   if(e.code==='Space'&&S._spacePan){
     S._spacePan=false;
     if(!S.panning)setTool(S._prevTool||'select');
