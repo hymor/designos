@@ -2560,10 +2560,21 @@ canvas.addEventListener('mousemove',function(e){
           return;
         }
 
-        // paths: тоже transform до mouseup
+        // paths: transform до mouseup, сохраняем rotation
         if(it.type==='path'){
           var domP=document.getElementById('g'+it.id);
-          if(domP) domP.setAttribute('transform','translate('+dx+','+dy+')');
+          if(domP){
+            var rot=it.rotation||0;
+            var pbbM=getBBox(it);
+            var rcxM=pbbM.x+pbbM.w/2, rcyM=pbbM.y+pbbM.h/2;
+            if(it.frameId){
+              var _pfrM=S.frames.find(function(f){return f.id===it.frameId;});
+              if(_pfrM){var _pabsM=absPos(_pfrM);rcxM-=_pabsM.x;rcyM-=_pabsM.y;}
+            }
+            var trStrM='translate('+dx+','+dy+')';
+            if(rot)trStrM+=' rotate('+rot+','+rcxM+','+rcyM+')';
+            domP.setAttribute('transform',trStrM);
+          }
           return;
         }
 
@@ -2629,11 +2640,22 @@ canvas.addEventListener('mousemove',function(e){
         }
         absX=nx; absY=ny;
       } else if(isPath){
-        // Move path: translate SVG transform, update pts on mouseup
+        // Move path: translate SVG transform, preserve rotation; update pts on mouseup
         nx=snapV(S.dragS.ox+dx); ny=snapV(S.dragS.oy+dy);
         var ddxp=nx-S.dragS.ox, ddyp=ny-S.dragS.oy;
         var domP=document.getElementById('g'+S.dragEl.id);
-        if(domP)domP.setAttribute('transform','translate('+ddxp+','+ddyp+')');
+        if(domP){
+          var rot=S.dragEl.rotation||0;
+          var pbb2=getBBox(S.dragEl);
+          var rcx=pbb2.x+pbb2.w/2, rcy=pbb2.y+pbb2.h/2;
+          if(S.dragEl.frameId){
+            var _pfr=S.frames.find(function(f){return f.id===S.dragEl.frameId;});
+            if(_pfr){var _pabs=absPos(_pfr);rcx-=_pabs.x;rcy-=_pabs.y;}
+          }
+          var trStr='translate('+ddxp+','+ddyp+')';
+          if(rot)trStr+=' rotate('+rot+','+rcx+','+rcy+')';
+          domP.setAttribute('transform',trStr);
+        }
         absX=nx; absY=ny;
         var pbb=getBBox(S.dragEl);
         var cx2p=absX+pbb.w/2, cy2p=absY+pbb.h/2;
