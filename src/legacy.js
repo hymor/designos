@@ -2352,17 +2352,17 @@ if(ids.length===1){
     var rot=(T.type==='group')?0:(T.rotation||0);
     var cx=ab.x+w/2, cy=ab.y+h/2;
     var hw=w/2, hh=h/2;
-    var pad=3/S.zoom, sw=1.5/S.zoom, hs=7/S.zoom;
+    var sw=1.5/S.zoom, hs=7/S.zoom;
 
     // Outer group rotated around object centre
     var grp=ns('g');
     grp.setAttribute('transform','rotate('+rot+','+cx+','+cy+')');
     selOv.appendChild(grp);
 
-    // Bounding rect (in unrotated local space, centred on cx,cy)
+    // Bounding rect (in unrotated local space, tight to object)
     var r=ns('rect');
-    r.setAttribute('x',ab.x-pad); r.setAttribute('y',ab.y-pad);
-    r.setAttribute('width',w+pad*2); r.setAttribute('height',h+pad*2);
+    r.setAttribute('x',ab.x); r.setAttribute('y',ab.y);
+    r.setAttribute('width',w); r.setAttribute('height',h);
     r.setAttribute('rx',2/S.zoom); r.setAttribute('fill','none');
     r.setAttribute('stroke',color); r.setAttribute('stroke-width',sw);
     r.setAttribute('pointer-events','none');
@@ -2460,7 +2460,7 @@ if(ids.length===1){
       var rotHx=ab.x+w/2, rotHy=ab.y-rotOffset;
       // Stem
       var stem=ns('line');
-      stem.setAttribute('x1',ab.x+w/2); stem.setAttribute('y1',ab.y-pad);
+      stem.setAttribute('x1',ab.x+w/2); stem.setAttribute('y1',ab.y);
       stem.setAttribute('x2',rotHx);    stem.setAttribute('y2',rotHy+5/S.zoom);
       stem.setAttribute('stroke',color); stem.setAttribute('stroke-width',sw);
       stem.setAttribute('pointer-events','none');
@@ -2487,10 +2487,10 @@ if(ids.length===1){
   } else {
     // Multi-select: axis-aligned group box (no rotation)
     var gbb=getSelBBox(); if(!gbb)return;
-    var pad=4/S.zoom, sw=1.5/S.zoom;
+    var sw=1.5/S.zoom;
     var r=ns('rect');
-    r.setAttribute('x',gbb.x-pad); r.setAttribute('y',gbb.y-pad);
-    r.setAttribute('width',gbb.w+pad*2); r.setAttribute('height',gbb.h+pad*2);
+    r.setAttribute('x',gbb.x); r.setAttribute('y',gbb.y);
+    r.setAttribute('width',gbb.w); r.setAttribute('height',gbb.h);
     r.setAttribute('rx',2/S.zoom); r.setAttribute('fill','none');
     r.setAttribute('stroke','#7b61ff'); r.setAttribute('stroke-width',sw);
     r.setAttribute('stroke-dasharray',6/S.zoom+','+3/S.zoom);
@@ -2517,8 +2517,8 @@ if(ids.length===1){
       ig.setAttribute('transform','rotate('+irot+','+(iab.x+iw/2)+','+(iab.y+ih/2)+')');
 
       var ir=ns('rect');
-      ir.setAttribute('x',iab.x-1/S.zoom); ir.setAttribute('y',iab.y-1/S.zoom);
-      ir.setAttribute('width',iw+2/S.zoom); ir.setAttribute('height',ih+2/S.zoom);
+      ir.setAttribute('x',iab.x); ir.setAttribute('y',iab.y);
+      ir.setAttribute('width',iw); ir.setAttribute('height',ih);
       ir.setAttribute('rx',1/S.zoom); ir.setAttribute('fill','none');
       ir.setAttribute('stroke','rgba(123,97,255,0.5)'); ir.setAttribute('stroke-width',1/S.zoom);
       ir.setAttribute('pointer-events','none');
