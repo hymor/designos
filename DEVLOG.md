@@ -1,6 +1,7 @@
 # Devlog
 
 ## 2026-03-06
++ group fold\unfold option added
 + multiple marque selection for vectors, also movement of selected points
 + modules are extracted from legacy.js
 + now frames can be folded\unfolded

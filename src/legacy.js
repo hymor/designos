@@ -2059,10 +2059,11 @@ function drawPenEditNodes(){
             S.penEditSelNode=S.penEditSelNodes.length?S.penEditSelNodes[0]:-1;
             drawPenEditNodes();return;
           }
-          // click on selected node without Shift: keep selection, start drag
+          // click on selected node without Shift: keep selection, start drag (do not redraw — keeps node in DOM so dblclick fires)
         } else {
           if(ev.shiftKey){S.penEditSelNodes.push(i);}
           else{S.penEditSelNodes=[i];}
+          drawPenEditNodes();
         }
         S.penEditSelNode=i;S.penEditDragNodeIdx=i;S.penEditDragMoved=false;
         var starts={};
@@ -2071,7 +2072,6 @@ function drawPenEditNodes(){
           starts[ii]={ox:p.x,oy:p.y,ocx1:p.cx1,ocy1:p.cy1,ocx2:p.cx2,ocy2:p.cy2};
         });
         S.penEditDragStart={starts:starts};
-        drawPenEditNodes();
       });
       nd.addEventListener('dblclick',function(ev){
         ev.stopPropagation();penToggleNodeType(i);
@@ -4123,21 +4123,24 @@ function refreshProps(){
 
 // ── SAVE / LOAD ──
 function saveProject(){
-  var data={version:7,nid:S.nid,frames:S.frames,els:S.els,components:S.components};
+  var data={version:8,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components};
   var blob=new Blob([JSON.stringify(data)],{type:'application/json'});
   var url=URL.createObjectURL(blob);var a=document.createElement('a');a.download='project.designos';a.href=url;a.click();URL.revokeObjectURL(url);toast('Saved ✓');
+  var st=document.getElementById('save-status');if(st)st.textContent='Saved';
 }
 function loadProject(json){
   try{
     var data=JSON.parse(json);
     framesG.innerHTML='';elsLoose.innerHTML='';selOv.innerHTML='';defsEl.innerHTML='';sgG.innerHTML='';
-    S.frames=[];S.els=[];S.selId=null;S.selIds=[];S.nid=data.nid||1;S.components=data.components||[];activeGradStop=0;
+    S.frames=[];S.els=[];S.groups=[];S.selId=null;S.selIds=[];S.nid=data.nid||1;S.components=data.components||[];activeGradStop=0;
     S.projId=data.projId||('p'+Date.now());
     setProjName(data.projName||'Untitled');
+    S.groups=(data.groups||[]).slice();
     (data.frames||[]).forEach(function(fr){S.frames.push(fr);renderFrame(fr);});
     (data.els||[]).forEach(function(el){S.els.push(el);if(!el.frameId)renderElInto(el,elsLoose);});
     S.frames.filter(function(fr){return !fr.frameId;}).forEach(function(fr){if(getAL(fr)){applyAutoLayout(fr);}renderFrame(fr);});
     refreshLayers();refreshProps();refreshCompPanel();snapshot();toast('Project loaded ✓');
+    var st=document.getElementById('save-status');if(st)st.textContent='Saved';
   }catch(err){console.error(err);toast('Failed to load');}
 }
 document.getElementById('save-btn').addEventListener('click',saveProject);
@@ -4158,10 +4161,12 @@ function renameProject(name){
 function scheduleAutoSave(){
   clearTimeout(_autoSaveTimer);
   _autoSaveTimer=setTimeout(doAutoSave,2500);
+  var st=document.getElementById('save-status');if(st)st.textContent='';
 }
 function doAutoSave(){
+  clearTimeout(_autoSaveTimer);_autoSaveTimer=null;
   if(!S.projId) S.projId='p'+Date.now();
-  var data={version:8,projId:S.projId,projName:S.projName,nid:S.nid,frames:S.frames,els:S.els,components:S.components};
+  var data={version:8,projId:S.projId,projName:S.projName,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components};
   var json=JSON.stringify(data);
   try{localStorage.setItem('dos_proj_'+S.projId,json);}catch(e){return;}
   var list=[];
@@ -4173,6 +4178,7 @@ function doAutoSave(){
     localStorage.setItem('dos_projects',JSON.stringify(list));
     localStorage.setItem('dos_last',S.projId);
   }catch(e){}
+  var st=document.getElementById('save-status');if(st)st.textContent='Saved';
   genThumbAsync(function(dataUrl){
     if(!dataUrl)return;
     var list2=[];
@@ -4181,6 +4187,9 @@ function doAutoSave(){
     if(i>=0){list2[i].thumb=dataUrl;try{localStorage.setItem('dos_projects',JSON.stringify(list2));}catch(e){}}
   });
 }
+window.addEventListener('beforeunload',function(){
+  if(_autoSaveTimer){clearTimeout(_autoSaveTimer);_autoSaveTimer=null;doAutoSave();}
+});
 function genThumbAsync(cb){
   var svgEl=document.getElementById('svg');
   if(!svgEl||(!S.frames.length&&!S.els.length)){cb(null);return;}
