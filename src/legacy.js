@@ -4125,7 +4125,8 @@ function refreshProps(){
 function saveProject(){
   var data={version:8,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components};
   var blob=new Blob([JSON.stringify(data)],{type:'application/json'});
-  var url=URL.createObjectURL(blob);var a=document.createElement('a');a.download='project.designos';a.href=url;a.click();URL.revokeObjectURL(url);toast('Saved ✓');
+  var fname=(S.projName||'project').replace(/[/\\:*?"<>|]/g,'').replace(/\s+/g,' ').trim()||'project';
+  var url=URL.createObjectURL(blob);var a=document.createElement('a');a.download=fname+'.designos';a.href=url;a.click();URL.revokeObjectURL(url);toast('Saved ✓');
   var st=document.getElementById('save-status');if(st)st.textContent='Saved';
 }
 function validateAndRepairProject(data){
