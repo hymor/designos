@@ -1,6 +1,8 @@
 # Devlog
 
 ## 2026-03-06
++ fixes for vector editing
++ double click as finishing editing vector object
 + remade objects editing options on side panel
 + remade text editing options
 + rotation bug fix

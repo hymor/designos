@@ -2307,8 +2307,9 @@ function enterPenEditMode(elId){
   var el=S.els.find(function(e){return e.id===elId});
   if(!el||el.type!=='path'||!el.pts||!el.pts.length)return;
   clearSel();
-  var xs=el.pts.map(function(p){return p.x;}),ys=el.pts.map(function(p){return p.y;});
-  S.penEditPathCenter={x:(Math.min.apply(null,xs)+Math.max.apply(null,xs))/2,y:(Math.min.apply(null,ys)+Math.max.apply(null,ys))/2};
+  var closed=el.d&&el.d.endsWith('Z');
+  var b=pathTightBBox(el.pts,closed);
+  S.penEditPathCenter={x:(b.minX+b.maxX)/2,y:(b.minY+b.maxY)/2};
   S.penEditId=elId;S.penEditSelNode=-1;S.penEditDragNodeIdx=-1;S.penEditDragStart=null;
   drawPenEditNodes();
   toast('Node Edit · drag nodes/handles · dblclick node = bezier toggle · Del = remove · Esc = exit');
