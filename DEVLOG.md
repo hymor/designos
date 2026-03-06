@@ -1,7 +1,8 @@
 # Devlog
 
 ## 2026-03-06
-+ 
++ rotation bug fix
++ proportinal scale with shift button
 + vector importing from illustrator
 + changed the way of selecting and editing ojbects on frames
 + scale fixes for pasted vectors and editing fixes for bezier curves
