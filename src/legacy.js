@@ -1128,10 +1128,19 @@ function renderElInto(el,pg,inGroup){
     s.setAttribute('opacity',el.opacity!=null?el.opacity:1);
     g.appendChild(s);
   }
-  // Apply rotation around element centre
+  // Apply rotation around element centre.
+  // getBBox always returns absolute canvas coords. The g lives either in:
+  //   elsLoose  → no extra translate, absolute coords are fine as-is
+  //   fc (frame content group) → parent fg has translate(fr.x, fr.y)
+  //   gg (group container)  → gg itself may be in fc, so same frame offset applies
+  // Correct local center = absoluteCenter - frameAbsPos (0 for loose elements).
   if(el.rotation){
-    var bb4=getBBox(el);
-    var rcx=bb4.x+bb4.w/2, rcy=bb4.y+bb4.h/2;
+    var _bb=getBBox(el);
+    var rcx=_bb.x+_bb.w/2, rcy=_bb.y+_bb.h/2;
+    if(el.frameId){
+      var _pfr=S.frames.find(function(f){return f.id===el.frameId;});
+      if(_pfr){var _pabs=absPos(_pfr);rcx-=_pabs.x;rcy-=_pabs.y;}
+    }
     g.setAttribute('transform','rotate('+el.rotation+','+rcx+','+rcy+')');
   }
   if(!inGroup){
@@ -2660,6 +2669,7 @@ canvas.addEventListener('mousemove',function(e){
   if(S.resizing&&S.resEl){
     var pt=svgPt(e),rs=S.resS,el2=S.resEl,d=S.resDir;
     var dx=pt.x-rs.mx,dy=pt.y-rs.my;
+    var shiftLock=e.shiftKey;
       // --- GROUP scaling ---
   if(el2 && el2.type==='group'){
     var bbx=rs.bbx, bby=rs.bby, bbw=rs.bbw, bbh=rs.bbh;
@@ -2675,6 +2685,15 @@ canvas.addEventListener('mousemove',function(e){
     if(d.indexOf('n')>=0){
       ny = snapV(bby + dy);
       nh = Math.max(10, (bby+bbh) - ny);
+    }
+
+    if(shiftLock&&bbw&&bbh){
+      var s=Math.min(nw/bbw,nh/bbh);
+      s=Math.max(s,10/bbw,10/bbh);
+      nw=snapV(bbw*s); nh=snapV(bbh*s);
+      var ax0=rs.anchorX,ay0=rs.anchorY;
+      nx=(d.indexOf('w')>=0)?ax0-nw:ax0;
+      ny=(d.indexOf('n')>=0)?ay0-nh:ay0;
     }
 
     var sx = nw / (bbw||1);
@@ -2750,6 +2769,13 @@ canvas.addEventListener('mousemove',function(e){
     if(d.indexOf('s')>=0)ah=Math.max(10,snapV(rs.h+dy));
     if(d.indexOf('w')>=0){ax=snapV(rs.ax+dx);aw=Math.max(10,rs.w+(rs.ax-ax));}
     if(d.indexOf('n')>=0){ay=snapV(rs.ay+dy);ah=Math.max(10,rs.h+(rs.ay-ay));}
+    if(shiftLock&&rs.w&&rs.h){
+      var s=Math.min(aw/rs.w,ah/rs.h);
+      s=Math.max(s,10/rs.w,10/rs.h);
+      aw=snapV(rs.w*s); ah=snapV(rs.h*s);
+      ax=(d.indexOf('w')>=0)?(rs.ax+rs.w-aw):rs.ax;
+      ay=(d.indexOf('n')>=0)?(rs.ay+rs.h-ah):rs.ay;
+    }
     if(el2.type==='path'){
       var sx2=aw/(rs.w||1),sy2=ah/(rs.h||1);
       var ancX=d.indexOf('w')>=0?rs.ax+rs.w:rs.ax;
