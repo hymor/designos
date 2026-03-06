@@ -56,7 +56,9 @@ export const S = {
   projId: null,
   projName: 'Untitled',
   collapsedFrames: {},  // frameId -> true when frame is collapsed in layers tree
-  collapsedGroups: {}   // groupId -> true when group is collapsed in layers tree
+  collapsedGroups: {},  // groupId -> true when group is collapsed in layers tree
+  openTabs: [],         // [{id, name}] open project tabs
+  activeTabId: null     // id of currently active tab
 };
 
 function getDom() {

@@ -4156,7 +4156,8 @@ function validateAndRepairProject(data){
   });
   return repaired;
 }
-function loadProject(json,fileName){
+function loadProject(json,fileName,opts){
+  opts=opts||{};
   try{
     var data=JSON.parse(json);
     if(!data||typeof data!=='object'){toast('Invalid project file');return;}
@@ -4183,9 +4184,15 @@ function loadProject(json,fileName){
       if(saved){addCurrentToRecentList();}
       doAutoSave();
     }
-    toast(repaired?'Project loaded (invalid references repaired)':'Project loaded ✓');
+    if(!S.openTabs)S.openTabs=[];
+    var inTabs=S.openTabs.some(function(t){return t.id===S.projId;});
+    if(!inTabs)S.openTabs.unshift({id:S.projId,name:S.projName});
+    else S.openTabs.forEach(function(t){if(t.id===S.projId)t.name=S.projName;});
+    S.activeTabId=S.projId;
+    refreshProjectTabs();
+    if(!opts.silent)toast(repaired?'Project loaded (invalid references repaired)':'Project loaded ✓');
     var st=document.getElementById('save-status');if(st)st.textContent='Saved';
-  }catch(err){console.error(err);toast('Failed to load');}
+  }catch(err){console.error(err);if(!opts.silent)toast('Failed to load');}
 }
 document.getElementById('save-btn').addEventListener('click',saveProject);
 document.getElementById('load-btn').addEventListener('click',function(){document.getElementById('proj-input').click();});
@@ -4197,6 +4204,7 @@ function setProjName(name){
   S.projName=name||'Untitled';
   var inp=document.getElementById('proj-name-input');
   if(inp&&document.activeElement!==inp)inp.value=S.projName;
+  if(S.openTabs){var t=S.openTabs.find(function(x){return x.id===S.projId;});if(t)t.name=S.projName;refreshProjectTabs();}
 }
 function renameProject(name){
   setProjName((name||'').trim()||'Untitled');
@@ -4341,9 +4349,50 @@ function newProject(){
   S.frames=[];S.els=[];S.selId=null;S.selIds=[];S.nid=1;S.components=[];
   S.projId='p'+Date.now();setProjName('Untitled');
   S.history=[];S.histIdx=-1;
+  if(!S.openTabs)S.openTabs=[];
+  S.openTabs.unshift({id:S.projId,name:S.projName});
+  S.activeTabId=S.projId;
+  refreshProjectTabs();
   var r=canvas.getBoundingClientRect();S.px=r.width/2-300;S.py=r.height/2-200;
   applyTr();drawSnapGrid();refreshLayers();refreshProps();refreshCompPanel();refreshUndoUI();
   snapshot();hideRecent();toast('New project');
+}
+function refreshProjectTabs(){
+  var cont=document.getElementById('project-tabs');
+  if(!cont)return;
+  cont.innerHTML='';
+  (S.openTabs||[]).forEach(function(t){
+    var btn=document.createElement('button');btn.type='button';btn.className='project-tab'+(t.id===S.activeTabId?' active':'');
+    btn.innerHTML='<span>'+escHtml(t.name||'Untitled')+'</span><span class="project-tab-close" data-tab-id="'+escHtml(t.id)+'">×</span>';
+    btn.title=t.name||'Untitled';
+    btn.addEventListener('click',function(e){if(e.target.classList.contains('project-tab-close'))return;switchToTab(t.id);});
+    btn.querySelector('.project-tab-close').addEventListener('click',function(e){e.stopPropagation();closeTab(t.id);});
+    cont.appendChild(btn);
+  });
+}
+function switchToTab(id){
+  if(id===S.projId)return;
+  doAutoSave();
+  var json=localStorage.getItem('dos_proj_'+id);
+  if(!json){toast('Project not found');S.openTabs=S.openTabs.filter(function(t){return t.id!==id;});refreshProjectTabs();return;}
+  loadProject(json,null,{silent:true});
+  hideRecent();
+}
+function closeTab(id){
+  var idx=S.openTabs.findIndex(function(t){return t.id===id;});
+  if(idx<0)return;
+  S.openTabs=S.openTabs.filter(function(t){return t.id!==id;});
+  if(S.projId===id){
+    if(S.openTabs.length){
+      var next=S.openTabs[Math.min(idx,S.openTabs.length-1)]||S.openTabs[0];
+      switchToTab(next.id);
+    }else{
+      framesG.innerHTML='';elsLoose.innerHTML='';selOv.innerHTML='';defsEl.innerHTML='';sgG.innerHTML='';
+      S.frames=[];S.els=[];S.groups=[];S.selId=null;S.selIds=[];S.projId=null;S.projName='Untitled';S.nid=1;S.components=[];S.history=[];S.histIdx=-1;
+      refreshLayers();refreshProps();refreshCompPanel();refreshUndoUI();refreshProjectTabs();
+      showRecent();
+    }
+  }else refreshProjectTabs();
 }
 
 // ── EXPORT ──
@@ -4484,6 +4533,8 @@ function edBadgeHide(){
     S.projId='p'+Date.now();
     snapshot();
   }
+  if(S.projId&&(!S.openTabs||!S.openTabs.length)){if(!S.openTabs)S.openTabs=[];S.openTabs.push({id:S.projId,name:S.projName});S.activeTabId=S.projId;}
+  refreshProjectTabs();
   updateExpBtn();
   toast('DesignOS v14 — Auto-save enabled');
 })();
