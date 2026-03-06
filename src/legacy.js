@@ -3716,6 +3716,7 @@ function refreshLayers(){
   var items=[];
   function addGroup(grp,depth){
     items.push({type:'group',obj:grp,depth:depth});
+    if(S.collapsedGroups[grp.id])return;
     [].concat(grp.children).reverse().forEach(function(cid){
       var cg2=S.groups.find(function(g){return g.id===cid});
       if(cg2){addGroup(cg2,depth+1);return;}
@@ -3751,18 +3752,20 @@ function refreshLayers(){
     var indent=(item.depth||0)*14+14;
     d.style.paddingLeft=indent+'px';
     var badge=isComp?'<span class="comp-badge">✦ C</span>':isInst?'<span class="inst-badge">⬡ I</span>':isGrp?(isMask?'<span class="mask-badge">⬡ Mask</span>':'<span class="group-badge">⊞ G</span>'):'';
-    var hasKids=isF&&item.obj.children&&item.obj.children.length>0;
-    var collapsed=hasKids&&!!S.collapsedFrames[item.obj.id];
-    if(isF){
+    var hasKidsF=isF&&item.obj.children&&item.obj.children.length>0;
+    var hasKidsG=isGrp&&item.obj.children&&item.obj.children.length>0;
+    var collapsed=isF&&hasKidsF&&!!S.collapsedFrames[item.obj.id]||isGrp&&hasKidsG&&!!S.collapsedGroups[item.obj.id];
+    if(isF||isGrp){
       var foldSpan=document.createElement('span');
       foldSpan.className='li-fold-wrap';
+      var hasKids=isF?hasKidsF:hasKidsG;
       if(hasKids){
         var fold=document.createElement('span');
         fold.className='li-fold';
         fold.title=collapsed?'Expand':'Collapse';
         fold.textContent=collapsed?'\u25B6':'\u25BC';
-        fold.dataset.frameId=item.obj.id;
-        fold.addEventListener('click',function(e){e.stopPropagation();var fid=e.currentTarget.dataset.frameId;S.collapsedFrames[fid]=!S.collapsedFrames[fid];refreshLayers();});
+        if(isF){fold.dataset.frameId=item.obj.id;}else{fold.dataset.groupId=item.obj.id;}
+        fold.addEventListener('click',function(e){e.stopPropagation();var fid=e.currentTarget.dataset.frameId,gid=e.currentTarget.dataset.groupId;if(fid){S.collapsedFrames[fid]=!S.collapsedFrames[fid];}if(gid){S.collapsedGroups[gid]=!S.collapsedGroups[gid];}refreshLayers();});
         foldSpan.appendChild(fold);
       }
       d.appendChild(foldSpan);
