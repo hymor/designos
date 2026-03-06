@@ -1205,6 +1205,7 @@ function mkEl(type,ax,ay,w,h,extra){
     fill:type==='line'?'none':S.defFill,
     stroke:type==='line'?S.defFill:'none',
     strokeWidth:type==='line'?2:0,
+    strokeAlign:'center',
     rx:0,opacity:1,fillMode:'solid',gradient:null,
     frameId:fr?fr.id:null,name:type+' '+(S.nid-1)
   },extra);
@@ -1262,9 +1263,43 @@ function renderElInto(el,pg,inGroup){
     s.setAttribute('preserveAspectRatio','xMidYMid meet');if(el.imgData)s.setAttribute('href',el.imgData);
   }
   if(s){
-    if(el.type!=='image'){s.setAttribute('fill',fillVal(el));s.setAttribute('stroke',el.stroke);s.setAttribute('stroke-width',el.strokeWidth);}
-    s.setAttribute('opacity',el.opacity!=null?el.opacity:1);
-    g.appendChild(s);
+    var align=(el.strokeAlign||'center');
+    var hasStroke=el.stroke&&el.stroke!=='none'&&(el.strokeWidth||0)>0;
+    var useStrokeAlign=hasStroke&&(align==='inside'||align==='outside')&&(el.type==='rect'||el.type==='ellipse'||el.type==='path');
+    if(useStrokeAlign){
+      var sw=el.strokeWidth||0;
+      var mid=ns('mask');mid.id='strokeMask-'+(align==='inside'?'in':'out')+'-'+el.id;
+      mid.setAttribute('maskUnits','userSpaceOnUse');
+      if(align==='inside'){
+        var mShape=el.type==='rect'?ns('rect'):el.type==='ellipse'?ns('ellipse'):ns('path');
+        if(el.type==='rect'){mShape.setAttribute('x',el.x);mShape.setAttribute('y',el.y);mShape.setAttribute('width',Math.max(1,el.w));mShape.setAttribute('height',Math.max(1,el.h));mShape.setAttribute('rx',el.rx||0);}
+        else if(el.type==='ellipse'){mShape.setAttribute('cx',el.x+el.w/2);mShape.setAttribute('cy',el.y+el.h/2);mShape.setAttribute('rx',Math.abs(el.w/2));mShape.setAttribute('ry',Math.abs(el.h/2));}
+        else{mShape.setAttribute('d',el.d||'');mShape.setAttribute('stroke-linecap','round');mShape.setAttribute('stroke-linejoin','round');}
+        mShape.setAttribute('fill','white');mid.appendChild(mShape);
+      } else {
+        var b=el.type==='path'&&el.pts&&el.pts.length?pathTightBBox(el.pts,el.d&&el.d.endsWith('Z')):{minX:el.x,minY:el.y,maxX:el.x+(el.w||0),maxY:el.y+(el.h||0)};
+        var mx=b.minX-sw,my=b.minY-sw,mw=(b.maxX-b.minX)+2*sw,mh=(b.maxY-b.minY)+2*sw;
+        var mR=ns('rect');mR.setAttribute('x',mx);mR.setAttribute('y',my);mR.setAttribute('width',mw);mR.setAttribute('height',mh);mR.setAttribute('fill','white');mid.appendChild(mR);
+        var mCut=el.type==='rect'?ns('rect'):el.type==='ellipse'?ns('ellipse'):ns('path');
+        if(el.type==='rect'){mCut.setAttribute('x',el.x);mCut.setAttribute('y',el.y);mCut.setAttribute('width',Math.max(1,el.w));mCut.setAttribute('height',Math.max(1,el.h));mCut.setAttribute('rx',el.rx||0);}
+        else if(el.type==='ellipse'){mCut.setAttribute('cx',el.x+el.w/2);mCut.setAttribute('cy',el.y+el.h/2);mCut.setAttribute('rx',Math.abs(el.w/2));mCut.setAttribute('ry',Math.abs(el.h/2));}
+        else{mCut.setAttribute('d',el.d||'');mCut.setAttribute('stroke-linecap','round');mCut.setAttribute('stroke-linejoin','round');}
+        mCut.setAttribute('fill','black');mid.appendChild(mCut);
+      }
+      var defs=ns('defs');defs.appendChild(mid);g.appendChild(defs);
+      var sFill=s.cloneNode(true);
+      sFill.setAttribute('fill',fillVal(el));sFill.setAttribute('stroke','none');sFill.setAttribute('stroke-width',0);sFill.setAttribute('opacity',el.opacity!=null?el.opacity:1);
+      g.appendChild(sFill);
+      var sStroke=s.cloneNode(true);
+      sStroke.setAttribute('fill','none');sStroke.setAttribute('stroke',el.stroke);sStroke.setAttribute('stroke-width',el.strokeWidth);
+      sStroke.setAttribute('opacity',el.opacity!=null?el.opacity:1);
+      sStroke.setAttribute('mask','url(#'+mid.id+')');
+      g.appendChild(sStroke);
+    } else {
+      if(el.type!=='image'){s.setAttribute('fill',fillVal(el));s.setAttribute('stroke',el.stroke);s.setAttribute('stroke-width',el.strokeWidth);}
+      s.setAttribute('opacity',el.opacity!=null?el.opacity:1);
+      g.appendChild(s);
+    }
   }
   // Apply rotation around element centre.
   // getBBox always returns absolute canvas coords. The g lives either in:
@@ -2108,7 +2143,7 @@ function penCommit(close){
     : S.penPts.map(function(p){return Object.assign({},p);});
   var elD = frAbs ? penPtsToD(elPts, close) : d;
   var el={id:uid(),type:'path',x:0,y:0,w:bw,h:bh,
-          fill:close?S.defFill:'none',stroke:S.defFill,strokeWidth:2,
+          fill:close?S.defFill:'none',stroke:S.defFill,strokeWidth:2,strokeAlign:'center',
           opacity:1,fillMode:'solid',gradient:null,rx:0,rotation:0,
           d:elD,pts:elPts,
           frameId:fr?fr.id:null,name:'Path '+(S.nid++)};
@@ -3531,7 +3566,7 @@ function importSVGShapes(svgText){
     if(s.type==='path'){
       var td=svgTransformD(s.d,pm);
       var tpts=extractPtsFromD(td);
-      el={id:uid(),type:'path',d:td,pts:tpts,importedSVG:true,fill:s.fill,stroke:s.stroke,strokeWidth:s.sw,opacity:s.op,name:'Path '+(S.nid++),frameId:null,groupId:null,x:0,y:0,w:0,h:0,isMask:false};
+      el={id:uid(),type:'path',d:td,pts:tpts,importedSVG:true,fill:s.fill,stroke:s.stroke,strokeWidth:s.sw,strokeAlign:'center',opacity:s.op,name:'Path '+(S.nid++),frameId:null,groupId:null,x:0,y:0,w:0,h:0,isMask:false};
       S.els.push(el);renderElInto(el,elsLoose);
     }else{
       var np=svgApplyM(pm,s.x,s.y);
@@ -4085,10 +4120,12 @@ function refreshProps(){
   if(isImg){h+='<div class="ps"><div class="ps-t">Image</div><div class="img-drop" id="img-rd">Click or drop to replace<input type="file" id="img-ri" accept="image/*"/></div></div>';}
   if(!isF&&!isTxt&&!isImg){
     var sbg=T.stroke==='none'?'transparent':T.stroke;
+    var salign=T.strokeAlign||'center';
     h+='<div class="ps"><div class="ps-t">Stroke</div><div class="pr">';
     h+='<div class="csw" style="background:'+sbg+'"><input type="color" id="ppstroke" value="'+(T.stroke==='none'?'#ffffff':T.stroke)+'"/></div>';
     h+='<input class="pi" id="ppstrokehex" value="'+T.stroke+'"/></div>';
-    h+='<div class="pr" style="margin-top:6px"><span class="pl">W</span><input class="pi" id="ppsw" type="number" value="'+T.strokeWidth+'" min="0"/></div></div>';
+    h+='<div class="pr" style="margin-top:6px"><span class="pl">W</span><input class="pi" id="ppsw" type="number" value="'+T.strokeWidth+'" min="0"/></div>';
+    h+='<div class="pr" style="margin-top:6px"><span class="pl">Pos</span><div class="g2" style="flex:1"><button type="button" class="preset-btn pp-stroke-align" data-align="inside" '+(salign==='inside'?' style="border-color:var(--accent);color:var(--accent)"':'')+'>Inside</button><button type="button" class="preset-btn pp-stroke-align" data-align="center" '+(salign==='center'?' style="border-color:var(--accent);color:var(--accent)"':'')+'>Center</button><button type="button" class="preset-btn pp-stroke-align" data-align="outside" '+(salign==='outside'?' style="border-color:var(--accent);color:var(--accent)"':'')+'>Outside</button></div></div></div>';
   }
   if(isTxt){
     h+='<div class="ps"><div class="ps-t">Typography</div>';
@@ -4132,6 +4169,14 @@ function refreshProps(){
   bind('ppstroke',function(e){T.stroke=e.target.value;renderEl(T);var h=document.getElementById('ppstrokehex');if(h)h.value=e.target.value;e.target.parentElement.style.background=e.target.value;snapshot();});
   bind('ppstrokehex',function(e){T.stroke=e.target.value;renderEl(T);snapshot();});
   bind('ppsw',function(e){T.strokeWidth=Math.max(0,+e.target.value);renderEl(T);snapshot();});
+  document.querySelectorAll('.pp-stroke-align').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      T.strokeAlign=btn.dataset.align;
+      document.querySelectorAll('.pp-stroke-align').forEach(function(b){b.style.borderColor='';b.style.color='';});
+      btn.style.borderColor='var(--accent)';btn.style.color='var(--accent)';
+      renderEl(T);snapshot();
+    });
+  });
   bind('ppfs',function(e){T.fs=Math.max(6,+e.target.value);if(T.type==='text')updateTextBounds(T);renderEl(T);drawSel();snapshot();});
   bind('ppfw',function(e){T.fw=e.target.value;if(T.type==='text')updateTextBounds(T);renderEl(T);snapshot();});
   bind('ppname',function(e){T.name=e.target.value;if(isF)renderFrame(T);refreshLayers();});

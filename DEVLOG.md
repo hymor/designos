@@ -1,6 +1,7 @@
 # Devlog
 
 ## 2026-03-06
++ removed offset for bounding box around the object
 + fixes for vector editing
 + double click as finishing editing vector object
 + remade objects editing options on side panel
