@@ -21,6 +21,7 @@ var S={
   penPts:[], penActive:false, penElId:null,
   penEditId:null, penEditSelNode:-1, penEditDragNodeIdx:-1, penEditDragStart:null,
   penEditDragHandleNode:-1, penEditDragHandleSide:'', penEditDragMoved:false,
+  penEditPathCenter:null,
   components:[],  // {id, name, sourceId, data:{...}}  (master definitions)
   smartGuides:true,
   projId:null,
@@ -77,6 +78,71 @@ function measureText(el){
   var b=m.getBBox();
   return{w:Math.max(0,b.width),h:Math.max(0,b.height),bboxY:b.y};
 }
+function pathTightBBox(pts,closed){
+  var xs=[],ys=[];
+  function add(x,y){xs.push(x);ys.push(y);}
+  function cubicTValues(x0,x1,x2,x3){
+    var out=[];
+    var a=x1-x0,b=x2-x1,c=x3-x2;
+    var A=a-2*b+c,B=2*(b-a),C=a;
+    if(Math.abs(A)>1e-10){
+      var d=B*B-4*A*C;
+      if(d>=0){var sq=Math.sqrt(d);out.push((-B+sq)/(2*A));out.push((-B-sq)/(2*A));}
+    }
+    return out.filter(function(tv){return tv>1e-6&&tv<1-1e-6;});
+  }
+  function evalCubic(t,x0,x1,x2,x3){var u=1-t;return u*u*u*x0+3*u*u*t*x1+3*u*t*t*x2+t*t*t*x3;}
+  function quadTValue(x0,x1,x2){
+    var den=x0-2*x1+x2;
+    if(Math.abs(den)<1e-10)return null;
+    var t=(x0-x1)/den;
+    return t>1e-6&&t<1-1e-6?t:null;
+  }
+  function evalQuad(t,x0,x1,x2){var u=1-t;return u*u*x0+2*u*t*x1+t*t*x2;}
+  for(var i=0;i<pts.length;i++){
+    var prev=pts[i>0?i-1:(closed?pts.length-1:null)],cur=pts[i];
+    if(!prev){add(cur.x,cur.y);continue;}
+    var hasPrevH=prev.cx2!=null,hasCurH=cur.cx1!=null;
+    if(hasPrevH&&hasCurH){
+      add(prev.x,prev.y);add(cur.x,cur.y);
+      var tVals=[0,1];
+      cubicTValues(prev.x,prev.cx2,cur.cx1,cur.x).forEach(function(t){tVals.push(t);});
+      cubicTValues(prev.y,prev.cy2,cur.cy1,cur.y).forEach(function(t){if(tVals.indexOf(t)<0)tVals.push(t);});
+      tVals.forEach(function(t){
+        add(evalCubic(t,prev.x,prev.cx2,cur.cx1,cur.x),evalCubic(t,prev.y,prev.cy2,cur.cy1,cur.y));
+      });
+    } else if(hasPrevH){
+      add(prev.x,prev.y);add(cur.x,cur.y);
+      var t=quadTValue(prev.x,prev.cx2,cur.x);
+      if(t!=null)add(evalQuad(t,prev.x,prev.cx2,cur.x),evalQuad(t,prev.y,prev.cy2,cur.y));
+      t=quadTValue(prev.y,prev.cy2,cur.y);
+      if(t!=null)add(evalQuad(t,prev.x,prev.cx2,cur.x),evalQuad(t,prev.y,prev.cy2,cur.y));
+    } else if(hasCurH){
+      add(prev.x,prev.y);add(cur.x,cur.y);
+      var t=quadTValue(prev.x,cur.cx1,cur.x);
+      if(t!=null)add(evalQuad(t,prev.x,cur.cx1,cur.x),evalQuad(t,prev.y,cur.cy1,cur.y));
+      t=quadTValue(prev.y,cur.cy1,cur.y);
+      if(t!=null)add(evalQuad(t,prev.x,cur.cx1,cur.x),evalQuad(t,prev.y,cur.cy1,cur.y));
+    } else {
+      add(prev.x,prev.y);add(cur.x,cur.y);
+    }
+  }
+  if(closed&&pts.length>1){
+    var last=pts[pts.length-1],first=pts[0];
+    var hasLastH=last.cx2!=null,hasFirstH=first.cx1!=null;
+    if(hasLastH&&hasFirstH){
+      var tVals=[0,1];
+      cubicTValues(last.x,last.cx2,first.cx1,first.x).forEach(function(t){tVals.push(t);});
+      cubicTValues(last.y,last.cy2,first.cy1,first.y).forEach(function(t){if(tVals.indexOf(t)<0)tVals.push(t);});
+      tVals.forEach(function(t){
+        add(evalCubic(t,last.x,last.cx2,first.cx1,first.x),evalCubic(t,last.y,last.cy2,first.cy1,first.y));
+      });
+    }
+  }
+  if(!xs.length)return{minX:0,minY:0,maxX:1,maxY:1};
+  var minX=Math.min.apply(null,xs),maxX=Math.max.apply(null,xs),minY=Math.min.apply(null,ys),maxY=Math.max.apply(null,ys);
+  return{minX:minX,minY:minY,maxX:maxX,maxY:maxY};
+}
 function getBBox(item){
   if(item.type==='group') return getGroupBBox(item);
   if(item.type==='text'){
@@ -86,15 +152,14 @@ function getBBox(item){
     return{x:ab.x,y:ab.y+fs+m.bboxY,w:m.w||1,h:m.h||1};
   }
   if(item.type==='path'&&item.pts&&item.pts.length){
-    var pxs=item.pts.map(function(p){return p.x;}),pys=item.pts.map(function(p){return p.y;});
-    var px=Math.min.apply(null,pxs),py=Math.min.apply(null,pys);
-    var pw=Math.max.apply(null,pxs)-px,ph=Math.max.apply(null,pys)-py;
-    // pts are frame-local when inside a frame — add frame absolute pos to get canvas coords
+    var closed=item.d&&item.d.endsWith('Z');
+    var b=pathTightBBox(item.pts,closed);
+    var px=b.minX,py=b.minY,pw=b.maxX-b.minX||1,ph=b.maxY-b.minY||1;
     if(item.frameId){
       var pff=S.frames.find(function(f){return f.id===item.frameId;});
-      if(pff){var pffa=absPos(pff);return{x:pffa.x+px,y:pffa.y+py,w:pw||1,h:ph||1};}
+      if(pff){var pffa=absPos(pff);return{x:pffa.x+px,y:pffa.y+py,w:pw,h:ph};}
     }
-    return{x:px,y:py,w:pw||1,h:ph||1};
+    return{x:px,y:py,w:pw,h:ph};
   }
   var ab=absPos(item);
   var w=item.w||0,h=item.h||0;
@@ -2055,31 +2120,108 @@ function penCommit(close){
 }
 
 // ── PEN NODE EDIT MODE ──
+function pathLocalToCanvas(px,py,pathEl){
+  var pts=pathEl.pts||[];
+  if(!pts.length)return{x:px,y:py};
+  var cx_pl,cy_pl;
+  if(S.penEditId===pathEl.id&&S.penEditPathCenter){cx_pl=S.penEditPathCenter.x;cy_pl=S.penEditPathCenter.y;}
+  else{var xs=pts.map(function(p){return p.x;}),ys=pts.map(function(p){return p.y;});var minX=Math.min.apply(null,xs),maxX=Math.max.apply(null,xs),minY=Math.min.apply(null,ys),maxY=Math.max.apply(null,ys);cx_pl=(minX+maxX)/2;cy_pl=(minY+maxY)/2;}
+  var rot=pathEl.rotation||0;
+  var rx=px,ry=py;
+  if(rot){
+    var rad=rot*Math.PI/180,cos=Math.cos(rad),sin=Math.sin(rad);
+    var dx=px-cx_pl,dy=py-cy_pl;
+    rx=cx_pl+dx*cos-dy*sin;ry=cy_pl+dx*sin+dy*cos;
+  }
+  if(pathEl.frameId){
+    var fr=S.frames.find(function(f){return f.id===pathEl.frameId;});
+    if(fr)return frameLocalToCanvas(fr,rx,ry);
+  }
+  return{x:rx,y:ry};
+}
+function pathDToCanvas(d,pathEl){
+  if(!d)return'';
+  function tf(x,y){var p=pathLocalToCanvas(x,y,pathEl);return p.x.toFixed(4)+' '+p.y.toFixed(4);}
+  var out=[],cx=0,cy=0,sx=0,sy=0;
+  var segs=[];var re2=/([MmLlHhVvCcQqSsTtZz])((?:[^MmLlHhVvCcQqSsTtZz])*)/g,seg;
+  while((seg=re2.exec(d))!==null){
+    var ns=(seg[2].match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g)||[]).map(Number);
+    segs.push({c:seg[1],n:ns});
+  }
+  segs.forEach(function(s){
+    var c=s.c,n=s.n;
+    if(c==='M'){for(var i=0;i<n.length;i+=2){cx=n[i];cy=n[i+1];out.push((i===0?'M':'L')+tf(cx,cy));if(i===0){sx=cx;sy=cy;}}}
+    else if(c==='m'){for(var i=0;i<n.length;i+=2){cx+=n[i];cy+=n[i+1];out.push((i===0?'M':'L')+tf(cx,cy));if(i===0){sx=cx;sy=cy;}}}
+    else if(c==='L'){for(var i=0;i<n.length;i+=2){cx=n[i];cy=n[i+1];out.push('L'+tf(cx,cy));}}
+    else if(c==='l'){for(var i=0;i<n.length;i+=2){cx+=n[i];cy+=n[i+1];out.push('L'+tf(cx,cy));}}
+    else if(c==='H'){for(var i=0;i<n.length;i++){cx=n[i];out.push('L'+tf(cx,cy));}}
+    else if(c==='h'){for(var i=0;i<n.length;i++){cx+=n[i];out.push('L'+tf(cx,cy));}}
+    else if(c==='V'){for(var i=0;i<n.length;i++){cy=n[i];out.push('L'+tf(cx,cy));}}
+    else if(c==='v'){for(var i=0;i<n.length;i++){cy+=n[i];out.push('L'+tf(cx,cy));}}
+    else if(c==='C'){for(var i=0;i<n.length;i+=6){out.push('C'+tf(n[i],n[i+1])+' '+tf(n[i+2],n[i+3])+' '+tf(n[i+4],n[i+5]));cx=n[i+4];cy=n[i+5];}}
+    else if(c==='c'){for(var i=0;i<n.length;i+=6){out.push('C'+tf(cx+n[i],cy+n[i+1])+' '+tf(cx+n[i+2],cy+n[i+3])+' '+tf(cx+n[i+4],cy+n[i+5]));cx+=n[i+4];cy+=n[i+5];}}
+    else if(c==='Q'){for(var i=0;i<n.length;i+=4){out.push('Q'+tf(n[i],n[i+1])+' '+tf(n[i+2],n[i+3]));cx=n[i+2];cy=n[i+3];}}
+    else if(c==='q'){for(var i=0;i<n.length;i+=4){out.push('Q'+tf(cx+n[i],cy+n[i+1])+' '+tf(cx+n[i+2],cy+n[i+3]));cx+=n[i+2];cy+=n[i+3];}}
+    else if(c==='S'){for(var i=0;i<n.length;i+=4){out.push('S'+tf(n[i],n[i+1])+' '+tf(n[i+2],n[i+3]));cx=n[i+2];cy=n[i+3];}}
+    else if(c==='s'){for(var i=0;i<n.length;i+=4){out.push('S'+tf(cx+n[i],cy+n[i+1])+' '+tf(cx+n[i+2],cy+n[i+3]));cx+=n[i+2];cy+=n[i+3];}}
+    else if(c==='Z'||c==='z'){out.push('Z');cx=sx;cy=sy;}
+  });
+  return out.join(' ');
+}
+function canvasToFrameLocal(canvasX,canvasY,fr){
+  var origin=fr.frameId?frameLocalToCanvas(S.frames.find(function(f){return f.id===fr.frameId;}),fr.x,fr.y):{x:fr.x,y:fr.y};
+  var qx=canvasX-origin.x,qy=canvasY-origin.y;
+  var rad=((fr.rotation||0)*Math.PI/180),cos=Math.cos(rad),sin=Math.sin(rad);
+  var cx=fr.w/2,cy=fr.h/2;
+  return{x:cx+(qx-cx)*cos+(qy-cy)*sin,y:cy-(qx-cx)*sin+(qy-cy)*cos};
+}
+function canvasToPathLocal(canvasX,canvasY,pathEl){
+  if(!pathEl.rotation&&!pathEl.frameId)return{x:canvasX,y:canvasY};
+  var pts=pathEl.pts||[];
+  var cx_pl,cy_pl;
+  if(S.penEditId===pathEl.id&&S.penEditPathCenter){cx_pl=S.penEditPathCenter.x;cy_pl=S.penEditPathCenter.y;}
+  else{var xs=pts.map(function(p){return p.x;}),ys=pts.map(function(p){return p.y;});cx_pl=(Math.min.apply(null,xs)+Math.max.apply(null,xs))/2;cy_pl=(Math.min.apply(null,ys)+Math.max.apply(null,ys))/2;}
+  var flx,fly;
+  if(pathEl.frameId){
+    var fr=S.frames.find(function(f){return f.id===pathEl.frameId;});
+    if(!fr)return{x:canvasX,y:canvasY};
+    var fl=canvasToFrameLocal(canvasX,canvasY,fr);
+    flx=fl.x;fly=fl.y;
+  } else {
+    flx=canvasX;fly=canvasY;
+  }
+  var rot=pathEl.rotation||0;
+  if(!rot)return{x:flx,y:fly};
+  var rad=(rot*Math.PI/180),cos=Math.cos(rad),sin=Math.sin(rad);
+  var dx=flx-cx_pl,dy=fly-cy_pl;
+  return{x:cx_pl+dx*cos+dy*sin,y:cy_pl-dx*sin+dy*cos};
+}
 function drawPenEditNodes(){
   selOv.innerHTML='';
   var el=S.els.find(function(e){return e.id===S.penEditId});
   if(!el||!el.pts||!el.pts.length)return;
-  // Dashed path preview
+  var toCanvas=function(px,py){return pathLocalToCanvas(px,py,el);};
+  var pathDCanvas=pathDToCanvas(el.d||'',el);
   var pathPrev=ns('path');
-  pathPrev.setAttribute('d',el.d||'');pathPrev.setAttribute('fill','none');
+  pathPrev.setAttribute('d',pathDCanvas);pathPrev.setAttribute('fill','none');
   pathPrev.setAttribute('stroke','#7b61ff');pathPrev.setAttribute('stroke-width',1.5/S.zoom);
   pathPrev.setAttribute('stroke-dasharray',6/S.zoom+','+3/S.zoom);
   pathPrev.setAttribute('pointer-events','none');selOv.appendChild(pathPrev);
-  // Bezier handle stems + squares (drawn behind nodes)
   el.pts.forEach(function(pt,idx){
     function drawHandle(hx,hy,side){
+      var c1=toCanvas(pt.x,pt.y),c2=toCanvas(hx,hy);
       var stem=ns('line');
-      stem.setAttribute('x1',pt.x);stem.setAttribute('y1',pt.y);
-      stem.setAttribute('x2',hx);stem.setAttribute('y2',hy);
+      stem.setAttribute('x1',c1.x);stem.setAttribute('y1',c1.y);
+      stem.setAttribute('x2',c2.x);stem.setAttribute('y2',c2.y);
       stem.setAttribute('stroke','rgba(123,97,255,0.7)');stem.setAttribute('stroke-width',1/S.zoom);
       stem.setAttribute('pointer-events','none');selOv.appendChild(stem);
       var hs=4/S.zoom;
       var sq=ns('rect');
-      sq.setAttribute('x',hx-hs);sq.setAttribute('y',hy-hs);
+      sq.setAttribute('x',c2.x-hs);sq.setAttribute('y',c2.y-hs);
       sq.setAttribute('width',hs*2);sq.setAttribute('height',hs*2);
       sq.setAttribute('fill','#1c1c1e');sq.setAttribute('stroke','#7b61ff');
       sq.setAttribute('stroke-width',1.5/S.zoom);
-      sq.setAttribute('transform','rotate(45 '+hx+' '+hy+')');
+      sq.setAttribute('transform','rotate(45 '+c2.x+' '+c2.y+')');
       sq.setAttribute('pointer-events','all');sq.style.cursor='crosshair';
       (function(i,s){
         sq.addEventListener('mousedown',function(ev){
@@ -2092,14 +2234,14 @@ function drawPenEditNodes(){
     if(pt.cx2!=null)drawHandle(pt.cx2,pt.cy2,'cp2');
     if(pt.cx1!=null)drawHandle(pt.cx1,pt.cy1,'cp1');
   });
-  // Node circles (on top)
   el.pts.forEach(function(pt,idx){
+    var c=toCanvas(pt.x,pt.y);
     var isSel=(idx===S.penEditSelNode);
     var hasHandles=pt.cx2!=null||pt.cx1!=null;
     var isSmooth=hasHandles&&pt.type==='smooth';
     var nodeClr=hasHandles?(isSmooth?'#3ecf8e':'#e8a020'):'#fff';
     var nd=ns('circle');
-    nd.setAttribute('cx',pt.x);nd.setAttribute('cy',pt.y);nd.setAttribute('r',5/S.zoom);
+    nd.setAttribute('cx',c.x);nd.setAttribute('cy',c.y);nd.setAttribute('r',5/S.zoom);
     nd.setAttribute('fill',isSel?'#7b61ff':nodeClr);
     nd.setAttribute('stroke',isSel?'#fff':nodeClr);
     nd.setAttribute('stroke-width',1.5/S.zoom);
@@ -2109,7 +2251,6 @@ function drawPenEditNodes(){
     (function(i){
       nd.addEventListener('mousedown',function(ev){
         ev.stopPropagation();
-        // Deselect previous node visually (direct DOM update, no recreation)
         var allNd=selOv.querySelectorAll('circle.pen-edit-node');
         if(S.penEditSelNode>=0&&allNd[S.penEditSelNode]){
           var op=el.pts[S.penEditSelNode];
@@ -2120,7 +2261,6 @@ function drawPenEditNodes(){
         S.penEditSelNode=i;S.penEditDragNodeIdx=i;S.penEditDragMoved=false;
         var p=el.pts[i];
         S.penEditDragStart={ox:p.x,oy:p.y,ocx1:p.cx1,ocy1:p.cy1,ocx2:p.cx2,ocy2:p.cy2};
-        // Select this node visually
         nd.setAttribute('fill','#7b61ff');nd.setAttribute('stroke','#fff');
       });
       nd.addEventListener('dblclick',function(ev){
@@ -2159,19 +2299,23 @@ function penToggleNodeType(idx){
     pt.type='smooth';
   }
   el.d=penPtsToD(el.pts,isClosed);
-  renderEl(el);drawPenEditNodes();snapshot();
+  var pDom=document.getElementById('g'+el.id);
+  if(pDom){var pEl=pDom.querySelector('path');if(pEl)pEl.setAttribute('d',el.d);}
+  drawPenEditNodes();snapshot();
 }
 function enterPenEditMode(elId){
   var el=S.els.find(function(e){return e.id===elId});
   if(!el||el.type!=='path'||!el.pts||!el.pts.length)return;
   clearSel();
+  var xs=el.pts.map(function(p){return p.x;}),ys=el.pts.map(function(p){return p.y;});
+  S.penEditPathCenter={x:(Math.min.apply(null,xs)+Math.max.apply(null,xs))/2,y:(Math.min.apply(null,ys)+Math.max.apply(null,ys))/2};
   S.penEditId=elId;S.penEditSelNode=-1;S.penEditDragNodeIdx=-1;S.penEditDragStart=null;
   drawPenEditNodes();
   toast('Node Edit · drag nodes/handles · dblclick node = bezier toggle · Del = remove · Esc = exit');
 }
 function exitPenEditMode(){
   var id=S.penEditId;
-  S.penEditId=null;S.penEditSelNode=-1;S.penEditDragNodeIdx=-1;S.penEditDragStart=null;
+  S.penEditId=null;S.penEditPathCenter=null;S.penEditSelNode=-1;S.penEditDragNodeIdx=-1;S.penEditDragStart=null;
   S.penEditDragHandleNode=-1;S.penEditDragHandleSide='';S.penEditDragMoved=false;
   selOv.innerHTML='';
   if(id)selectEl(id);
@@ -2537,20 +2681,29 @@ canvas.addEventListener('mousedown',function(e){
   ghost.setAttribute('x',sp.x);ghost.setAttribute('y',sp.y);ghost.setAttribute('width',1);ghost.setAttribute('height',1);
 });
 
+canvas.addEventListener('dblclick',function(e){
+  if(S.penEditId){
+    exitPenEditMode();
+    e.preventDefault();
+    e.stopPropagation();
+  }
+});
+
 canvas.addEventListener('mousemove',function(e){
   if(S.tool==='eyedropper'){edBadgeUpdate(e);return;}
   if(S.penEditId&&S.penEditDragHandleNode>=0){
     var pt=svgPt(e),sp=snapPt(pt);
     var el=S.els.find(function(e2){return e2.id===S.penEditId});
     if(el&&el.pts&&el.pts[S.penEditDragHandleNode]){
+      var loc=canvasToPathLocal(sp.x,sp.y,el);
       var node=el.pts[S.penEditDragHandleNode];
       if(e.altKey&&node.type==='smooth'){node.type='corner';} // Alt breaks symmetry
       if(S.penEditDragHandleSide==='cp2'){
-        node.cx2=sp.x;node.cy2=sp.y;
-        if(node.type==='smooth'){node.cx1=2*node.x-sp.x;node.cy1=2*node.y-sp.y;}
+        node.cx2=loc.x;node.cy2=loc.y;
+        if(node.type==='smooth'){node.cx1=2*node.x-loc.x;node.cy1=2*node.y-loc.y;}
       } else {
-        node.cx1=sp.x;node.cy1=sp.y;
-        if(node.type==='smooth'){node.cx2=2*node.x-sp.x;node.cy2=2*node.y-sp.y;}
+        node.cx1=loc.x;node.cy1=loc.y;
+        if(node.type==='smooth'){node.cx2=2*node.x-loc.x;node.cy2=2*node.y-loc.y;}
       }
       S.penEditDragMoved=true;
       var isClosed=el.d&&el.d.endsWith('Z');el.d=penPtsToD(el.pts,isClosed);
@@ -2564,10 +2717,11 @@ canvas.addEventListener('mousemove',function(e){
     var pt=svgPt(e),sp=snapPt(pt);
     var el=S.els.find(function(e2){return e2.id===S.penEditId});
     if(el&&el.pts&&el.pts[S.penEditDragNodeIdx]){
+      var loc=canvasToPathLocal(sp.x,sp.y,el);
       var ds=S.penEditDragStart;
-      var ddx=sp.x-ds.ox,ddy=sp.y-ds.oy;
+      var ddx=loc.x-ds.ox,ddy=loc.y-ds.oy;
       var node=el.pts[S.penEditDragNodeIdx];
-      node.x=sp.x;node.y=sp.y;
+      node.x=loc.x;node.y=loc.y;
       if(ds.ocx1!=null){node.cx1=ds.ocx1+ddx;node.cy1=ds.ocy1+ddy;}
       if(ds.ocx2!=null){node.cx2=ds.ocx2+ddx;node.cy2=ds.ocy2+ddy;}
       S.penEditDragMoved=true;

@@ -1,6 +1,8 @@
 # Devlog
 
 ## 2026-03-06
++ remade objects editing options on side panel
++ remade text editing options
 + rotation bug fix
 + proportinal scale with shift button
 + vector importing from illustrator
