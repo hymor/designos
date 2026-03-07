@@ -468,6 +468,19 @@ function defaultAL(){
          alignCross:'start',wrap:false,hugW:true,hugH:true};
 }
 function getAL(fr){return fr.autoLayout&&fr.autoLayout.enabled?fr.autoLayout:null;}
+function canFreeDragChild(cap){
+  if(!cap||!cap.frameId)return true;
+  var parentFr=S.frames.find(function(f){return f.id===cap.frameId;});
+  if(!parentFr)return true;
+  if(getAL(parentFr))return false;
+  return true;
+}
+function canFreeDragGroup(grp){
+  if(!grp||!grp.frameId)return true;
+  var parentFr=S.frames.find(function(f){return f.id===grp.frameId;});
+  if(!parentFr)return true;
+  return !getAL(parentFr);
+}
 function getLineEndpointsAbs(line){
   var x1=line.x,y1=line.y,x2=line.x+(line.w||0),y2=line.y+(line.h||0);
   if(line.frameId){
@@ -922,9 +935,9 @@ function _buildFrameSVG(fr){
 }
 
 function startFrameDrag(fr, pt){
-  var parentFrCheck=fr.frameId?S.frames.find(function(f){return f.id===fr.frameId;}):null;
-  if(parentFrCheck&&getAL(parentFrCheck))return;
-  S.dragging=true;S.dragEl=fr;
+  if(fr.locked===true)return;
+  S.dragging=true;
+  S.dragEl=fr;
   S.dragS={mx:pt.x,my:pt.y,ox:fr.x,oy:fr.y};
 }
 
@@ -1182,11 +1195,18 @@ function renderElInto(el,pg,inGroup){
   //   gg (group container)  → gg itself may be in fc, so same frame offset applies
   // Correct local center = absoluteCenter - frameAbsPos (0 for loose elements).
   if(el.rotation){
-    var _bb=getBBox(el);
-    var rcx=_bb.x+_bb.w/2, rcy=_bb.y+_bb.h/2;
-    if(el.frameId){
-      var _pfr=S.frames.find(function(f){return f.id===el.frameId;});
-      if(_pfr){var _pabs=absPos(_pfr);rcx-=_pabs.x;rcy-=_pabs.y;}
+    var rcx,rcy;
+    if(el.type==='path'&&el.pts&&el.pts.length){
+      var _bb=getBBox(el);
+      rcx=_bb.x+_bb.w/2;
+      rcy=_bb.y+_bb.h/2;
+      if(el.frameId){
+        var _pfr=S.frames.find(function(f){return f.id===el.frameId;});
+        if(_pfr){var _pabs=absPos(_pfr);rcx-=_pabs.x;rcy-=_pabs.y;}
+      }
+    } else {
+      rcx=el.x+(el.w||0)/2;
+      rcy=el.y+(el.h||0)/2;
     }
     g.setAttribute('transform','rotate('+el.rotation+','+rcx+','+rcy+')');
   }
@@ -1229,11 +1249,10 @@ function renderElInto(el,pg,inGroup){
     return;
   }
 
-  // дальше твой single-drag как был...
   if(!add){
-    var parentFr=cap.frameId?S.frames.find(function(f){return f.id===cap.frameId}):null;
-    if(parentFr&&getAL(parentFr))return;
-    S.dragging=true;S.dragEl=cap;
+    if(!canFreeDragChild(cap))return;
+    S.dragging=true;
+    S.dragEl=cap;
     var ab=cap.type==='path'?getBBox(cap):absPos(cap);
     S.dragS={mx:pt.x,my:pt.y,ox:ab.x,oy:ab.y,rx:cap.x,ry:cap.y};
   }
@@ -1683,10 +1702,10 @@ function renderGroup(grp){
       }
 
       if(!add){
-        // дальше твой single-drag группы как был...
+        if(!canFreeDragGroup(cap))return;
         var cb=getGroupBBox(cap);
-        S.dragging=true;S.dragEl=cap;
-
+        S.dragging=true;
+        S.dragEl=cap;
         var baseTx=0, baseTy=0;
         if(cap.frameId){
           var pf=S.frames.find(function(f){return f.id===cap.frameId});
@@ -2626,15 +2645,19 @@ canvas.addEventListener('mousedown',function(e){
     return;
   }
   if(S.tool==='select'){
-    S.bandAdd = (e.shiftKey||e.ctrlKey||e.metaKey);
-    if(!S.bandAdd)clearSel();
-
-    S.bandSel=true;
-    var cr=canvas.getBoundingClientRect();
-    S.bandStart={cx:e.clientX-cr.left,cy:e.clientY-cr.top};
-    bandRect.style.left=S.bandStart.cx+'px'; bandRect.style.top=S.bandStart.cy+'px';
-    bandRect.style.width='0'; bandRect.style.height='0';
-    bandRect.style.display='block';
+    var t=e.target;
+    var svgRoot=document.getElementById('svg');
+    var clickOnEmpty=(t===canvas)||(t===svgRoot);
+    if(clickOnEmpty){
+      S.bandAdd=(e.shiftKey||e.ctrlKey||e.metaKey);
+      if(!S.bandAdd)clearSel();
+      S.bandSel=true;
+      var cr=canvas.getBoundingClientRect();
+      S.bandStart={cx:e.clientX-cr.left,cy:e.clientY-cr.top};
+      bandRect.style.left=S.bandStart.cx+'px';bandRect.style.top=S.bandStart.cy+'px';
+      bandRect.style.width='0';bandRect.style.height='0';
+      bandRect.style.display='block';
+    }
     return;
   }
   if(S.tool==='text'){
@@ -2848,11 +2871,12 @@ canvas.addEventListener('mousemove',function(e){
     var pt=svgPt(e),dx=pt.x-S.dragS.mx,dy=pt.y-S.dragS.my;
     var isFr=S.frames.indexOf(S.dragEl)>=0;
     if(isFr){
-      var nx=snapV(S.dragS.ox+dx),ny=snapV(S.dragS.oy+dy);
+      var nx=snapV(S.dragS.ox+dx);
+      var ny=snapV(S.dragS.oy+dy);
       var sg=applySmartGuides(S.dragEl,nx,ny);
-      S.dragEl.x=nx+sg.dx; S.dragEl.y=ny+sg.dy;
-      var fg=document.getElementById('fg'+S.dragEl.id);
-      if(fg)fg.setAttribute('transform','translate('+S.dragEl.x+','+S.dragEl.y+')');
+      S.dragEl.x=nx+sg.dx;
+      S.dragEl.y=ny+sg.dy;
+      renderFrame(S.dragEl);
     } else {
       var nx,ny,absX,absY;
       var isGroup=S.groups.indexOf(S.dragEl)>=0;
@@ -3268,6 +3292,9 @@ canvas.addEventListener('mouseup',function(e){
       }
     }
     var elIsFrame=el&&!!S.frames.find(function(f){return f.id===el.id;});
+    if(elIsFrame){
+      renderFrame(el);
+    }
     if(el){
       var ab,cw,ch;
       if(el.type==='path'&&el.pts&&el.pts.length){
