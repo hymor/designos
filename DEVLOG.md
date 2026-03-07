@@ -1,6 +1,10 @@
 # Devlog
 
 ## 2026-03-07
++ text color by default is set to #000000
++ ellipse to path convertion added
++ rectangle to path convertion added
++ line edit added
 + line creation remade
 + slider for fast increment\decrement font size, spacing and line height
 + saving status remade - saved and saving(showing cloud symbol)
