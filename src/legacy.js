@@ -694,6 +694,7 @@ document.addEventListener('keydown',function(e){
     if(S.penEditId&&S.penEditSelNodes.length>0){
       e.preventDefault();
       var el=S.els.find(function(e2){return e2.id===S.penEditId});
+      if(el&&el.type==='line'){toast('Line has 2 endpoints — drag to edit');return;}
       if(el&&el.pts&&(el.pts.length-S.penEditSelNodes.length)>=2){
         var toRemove=S.penEditSelNodes.slice().sort(function(a,b){return b-a;});
         toRemove.forEach(function(idx){el.pts.splice(idx,1);});
@@ -1147,7 +1148,7 @@ function renderElInto(el,pg,inGroup){
 });
       g.addEventListener('dblclick',function(e){
         if(cap.type==='text'){e.stopPropagation();openTed(cap);}
-        else if(cap.type==='path'){e.stopPropagation();enterPenEditMode(cap.id);}
+        else if(cap.type==='path'||cap.type==='line'){e.stopPropagation();enterPenEditMode(cap.id);}
       });
     })(el);
   }
@@ -2100,6 +2101,7 @@ function drawPenEditNodes(){
 function penToggleNodeType(idx){
   var el=S.els.find(function(e){return e.id===S.penEditId});
   if(!el||!el.pts)return;
+  if(el.type==='line')return;
   var pt=el.pts[idx];
   var n=el.pts.length;
   var isClosed=el.d&&el.d.endsWith('Z');
@@ -2132,17 +2134,30 @@ function penToggleNodeType(idx){
 }
 function enterPenEditMode(elId){
   var el=S.els.find(function(e){return e.id===elId});
-  if(!el||el.type!=='path'||!el.pts||!el.pts.length)return;
+  if(!el)return;
+  if(el.type==='line'){
+    el.pts=[{x:el.x,y:el.y,type:'corner'},{x:el.x+(el.w||0),y:el.y+(el.h||0),type:'corner'}];
+    el.d='M'+el.x+','+el.y+' L'+(el.x+(el.w||0))+','+(el.y+(el.h||0));
+  }
+  if(el.type!=='path'&&el.type!=='line')return;
+  if(!el.pts||!el.pts.length)return;
   clearSel();
   var closed=el.d&&el.d.endsWith('Z');
   var b=pathTightBBox(el.pts,closed);
   S.penEditPathCenter={x:(b.minX+b.maxX)/2,y:(b.minY+b.maxY)/2};
   S.penEditId=elId;S.penEditSelNode=-1;S.penEditSelNodes=[];S.penEditDragNodeIdx=-1;S.penEditDragStart=null;
   drawPenEditNodes();
-  toast('Node Edit · drag nodes/handles · dblclick node = bezier toggle · Del = remove · Esc = exit');
+  toast(el.type==='line'?'Drag endpoints to edit line · Esc = exit':'Node Edit · drag nodes/handles · dblclick node = bezier toggle · Del = remove · Esc = exit');
 }
 function exitPenEditMode(){
   var id=S.penEditId;
+  var el=id?S.els.find(function(e){return e.id===id}):null;
+  if(el&&el.type==='line'&&el.pts&&el.pts.length>=2){
+    el.x=el.pts[0].x;el.y=el.pts[0].y;
+    el.w=el.pts[1].x-el.pts[0].x;el.h=el.pts[1].y-el.pts[0].y;
+    delete el.pts;delete el.d;
+    renderEl(el);
+  }
   S.penEditId=null;S.penEditPathCenter=null;S.penEditSelNode=-1;S.penEditSelNodes=[];S.penEditDragNodeIdx=-1;S.penEditDragStart=null;
   S.penEditDragHandleNode=-1;S.penEditDragHandleSide='';S.penEditDragMoved=false;S.penEditMarquee=null;
   selOv.innerHTML='';
@@ -2591,8 +2606,13 @@ canvas.addEventListener('mousemove',function(e){
       });
       S.penEditDragMoved=true;
       var isClosed=el.d&&el.d.endsWith('Z');el.d=penPtsToD(el.pts,isClosed);
-      var pDom=document.getElementById('g'+el.id);
-      if(pDom){var pEl=pDom.querySelector('path');if(pEl)pEl.setAttribute('d',el.d);}
+      if(el.type==='line'&&el.pts.length===2){
+        el.x=el.pts[0].x;el.y=el.pts[0].y;el.w=el.pts[1].x-el.pts[0].x;el.h=el.pts[1].y-el.pts[0].y;
+        renderEl(el);
+      } else {
+        var pDom=document.getElementById('g'+el.id);
+        if(pDom){var pEl=pDom.querySelector('path');if(pEl)pEl.setAttribute('d',el.d);}
+      }
       drawPenEditNodes();
     }
     return;
