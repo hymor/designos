@@ -24,7 +24,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 .zbtn{background:none;border:none;color:var(--text2);cursor:pointer;font-size:18px;line-height:1;padding:0 2px}
 .zbtn:hover{color:var(--text)}
 #zoom-val{min-width:36px;text-align:center;font-size:11px;color:var(--text2)}
-.save-status{font-size:10px;color:var(--text3);margin:0 6px;flex-shrink:0;width:36px;text-align:center;display:inline-block}
+.save-status{font-size:10px;color:var(--text3);margin:0 6px;flex-shrink:0;min-width:44px;width:44px;text-align:center;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
+.save-status-icon{display:none;align-items:center;justify-content:center}
+.save-status-icon.saving{display:inline-flex}
+.save-status-icon svg{width:14px;height:14px;opacity:.9}
+.save-status-text{display:inline-block}
 .hbtn{height:28px;padding:0 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text2);font-size:11px;font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0}
 .hbtn:hover{background:var(--surface3);color:var(--text)}
 .hbtn.active{background:rgba(62,207,142,0.15);border-color:var(--green);color:var(--green)}
@@ -268,7 +272,7 @@ rect[data-drop]{stroke:#7b61ff!important;stroke-width:2px!important;filter:drop-
     <button class="hbtn" id="ungroup-btn" title="Ungroup (Ctrl+Shift+G)">⊟ Ungroup</button>
     <button class="hbtn" id="mask-btn" title="Make Mask">⬡ Mask</button>
     <div class="tsep"></div>
-    <span id="save-status" class="save-status" title="Auto-save status"></span>
+    <span id="save-status" class="save-status" title="Auto-save status"><span id="save-status-icon" class="save-status-icon" title="Saving…"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></span><span id="save-status-text" class="save-status-text"></span></span>
     <button class="hbtn" id="save-btn">💾 Save</button>
     <button class="hbtn" id="load-btn">📂 Open</button>
     <button class="exp-btn" id="exp-btn">↓ Export</button>

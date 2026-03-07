@@ -4346,11 +4346,11 @@ function refreshProps(){
 
 // ── SAVE / LOAD ──
 function saveProject(){
-  var data={version:8,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components};
+  var data={version:8,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components,view:{zoom:S.zoom,px:S.px,py:S.py}};
   var blob=new Blob([JSON.stringify(data)],{type:'application/json'});
   var fname=(S.projName||'project').replace(/[/\\:*?"<>|]/g,'').replace(/\s+/g,' ').trim()||'project';
   var url=URL.createObjectURL(blob);var a=document.createElement('a');a.download=fname+'.designos';a.href=url;a.click();URL.revokeObjectURL(url);toast('Saved ✓');
-  var st=document.getElementById('save-status');if(st)st.textContent='Saved';
+  setSaveStatus('saved');
 }
 function validateAndRepairProject(data){
   var frames=data.frames||[],els=data.els||[],groups=data.groups||[];
@@ -4393,9 +4393,15 @@ function loadProject(json,fileName,opts){
     (Array.isArray(data.frames)?data.frames:[]).forEach(function(fr){S.frames.push(fr);renderFrame(fr);});
     (Array.isArray(data.els)?data.els:[]).forEach(function(el){S.els.push(el);if(!el.frameId)renderElInto(el,elsLoose);});
     S.frames.filter(function(fr){return !fr.frameId;}).forEach(function(fr){if(getAL(fr)){applyAutoLayout(fr);}renderFrame(fr);});
+    if(data.view&&typeof data.view.zoom==='number'&&typeof data.view.px==='number'&&typeof data.view.py==='number'){
+      S.zoom=Math.max(0.05,Math.min(20,data.view.zoom));
+      S.px=data.view.px;
+      S.py=data.view.py;
+    }
+    applyTr();drawSnapGrid();
     refreshLayers();refreshProps();refreshCompPanel();snapshot();
     if(!data.projId){
-      var payload=JSON.stringify({version:8,projId:S.projId,projName:S.projName,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components});
+      var payload=JSON.stringify({version:8,projId:S.projId,projName:S.projName,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components,view:{zoom:S.zoom,px:S.px,py:S.py}});
       var saved=false;
       for(var attempt=0;attempt<4;attempt++){
         try{localStorage.setItem('dos_proj_'+S.projId,payload);saved=true;break;}catch(e){
@@ -4414,7 +4420,7 @@ function loadProject(json,fileName,opts){
     S.activeTabId=S.projId;
     refreshProjectTabs();
     if(!opts.silent)toast(repaired?'Project loaded (invalid references repaired)':'Project loaded ✓');
-    var st=document.getElementById('save-status');if(st)st.textContent='Saved';
+    setSaveStatus('saved');
   }catch(err){console.error(err);if(!opts.silent)toast('Failed to load');}
 }
 document.getElementById('save-btn').addEventListener('click',saveProject);
@@ -4433,15 +4439,27 @@ function renameProject(name){
   setProjName((name||'').trim()||'Untitled');
   scheduleAutoSave();
 }
+function setSaveStatus(mode){
+  var icon=document.getElementById('save-status-icon');
+  var text=document.getElementById('save-status-text');
+  if(!icon||!text)return;
+  if(mode==='saving'){
+    icon.classList.add('saving');
+    text.textContent='';
+  }else{
+    icon.classList.remove('saving');
+    text.textContent=mode==='saved'?'Saved':'';
+  }
+}
 function scheduleAutoSave(){
   clearTimeout(_autoSaveTimer);
   _autoSaveTimer=setTimeout(doAutoSave,2500);
-  var st=document.getElementById('save-status');if(st)st.textContent='';
+  setSaveStatus('saving');
 }
 function doAutoSave(){
   clearTimeout(_autoSaveTimer);_autoSaveTimer=null;
   if(!S.projId) S.projId='p'+Date.now();
-  var data={version:8,projId:S.projId,projName:S.projName,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components};
+  var data={version:8,projId:S.projId,projName:S.projName,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components,view:{zoom:S.zoom,px:S.px,py:S.py}};
   var json=JSON.stringify(data);
   for(var attempt=0;attempt<4;attempt++){
     try{localStorage.setItem('dos_proj_'+S.projId,json);break;}catch(e){
@@ -4459,7 +4477,7 @@ function doAutoSave(){
     localStorage.setItem('dos_projects',JSON.stringify(list));
     localStorage.setItem('dos_last',S.projId);
   }catch(e){}
-  var st=document.getElementById('save-status');if(st)st.textContent='Saved';
+  setSaveStatus('saved');
   genThumbAsync(function(dataUrl){
     if(!dataUrl)return;
     var list2=[];
@@ -4578,7 +4596,7 @@ function newProject(){
   refreshProjectTabs();
   var r=canvas.getBoundingClientRect();S.px=r.width/2-300;S.py=r.height/2-200;
   applyTr();drawSnapGrid();refreshLayers();refreshProps();refreshCompPanel();refreshUndoUI();
-  snapshot();hideRecent();toast('New project');
+  snapshot();setSaveStatus('saved');hideRecent();toast('New project');
 }
 function refreshProjectTabs(){
   var cont=document.getElementById('project-tabs');
@@ -4612,6 +4630,7 @@ function closeTab(id){
     }else{
       framesG.innerHTML='';elsLoose.innerHTML='';selOv.innerHTML='';defsEl.innerHTML='';sgG.innerHTML='';
       S.frames=[];S.els=[];S.groups=[];S.selId=null;S.selIds=[];S.projId=null;S.projName='Untitled';S.nid=1;S.components=[];S.history=[];S.histIdx=-1;
+      setSaveStatus('');
       refreshLayers();refreshProps();refreshCompPanel();refreshUndoUI();refreshProjectTabs();
       showRecent();
     }

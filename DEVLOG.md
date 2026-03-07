@@ -1,7 +1,9 @@
 # Devlog
 
 ## 2026-03-07
-+ 
++ saving status remade - saved and saving(showing cloud symbol)
++ saving zoom and user location on artboard
++ remade typo creation: area text, click text typo
 + while creating box, ellipse and line instrument selection remains
 + proportional scale creation added for objects: box, ellipse
 + ellipse creation remade - ghost spline added 
