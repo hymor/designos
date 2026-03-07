@@ -2164,7 +2164,9 @@ if(ids.length===1){
     var fr=S.frames.find(function(f){return f.id===id});
     var gr=S.groups.find(function(g){return g.id===id});
     var T=el||fr||gr; if(!T)return;
-    var isF=!!fr, color=isF?'#3ecf8e':'#7b61ff';
+    var isF=!!fr;
+    var isTextEdit=T.type==='text'&&tedId===T.id&&ted.style.display!=='none';
+    var color=(isF||isTextEdit)?'#3ecf8e':'#7b61ff';
 
     var ab, w, h;
     if(T.type==='group'){
@@ -3665,33 +3667,40 @@ function updateTextBounds(el){
 }
 function commitText(){
   if(!tedId)return;
-  var el=S.els.find(function(e){return e.id===tedId});
-  if(el){
-    el.text=ted.value;
-    if(!el.text.trim()){
-      if(el.frameId){
-        var pf=S.frames.find(function(f){return f.id===el.frameId});
-        if(pf)pf.children=pf.children.filter(function(c){return c!==el.id});
-      }
-      S.els=S.els.filter(function(e){return e.id!==tedId});
-      var dead=document.getElementById('g'+tedId);
-      if(dead)dead.remove();
-      if(S.selId===tedId){S.selId=null;S.selIds=[];selOv.innerHTML='';}
-      refreshLayers();
-      refreshProps();
-    }else{
-      el.w=ted.offsetWidth/S.zoom;
-      el.h=ted.offsetHeight/S.zoom;
-      updateTextBounds(el);
-      var g=document.getElementById('g'+tedId);
-      if(g)g.style.display='';
-      renderEl(el);
-      snapshot();
-    }
+  var activeId=tedId;
+  var el=S.els.find(function(e){return e.id===activeId});
+  if(!el){
+    ted.style.display='none';
+    ted.value='';
+    tedId=null;
+    drawSel();
+    return;
   }
+  el.text=ted.value;
   ted.style.display='none';
   ted.value='';
   tedId=null;
+  if(!el.text.trim()){
+    if(el.frameId){
+      var pf=S.frames.find(function(f){return f.id===el.frameId});
+      if(pf)pf.children=pf.children.filter(function(c){return c!==el.id});
+    }
+    S.els=S.els.filter(function(e){return e.id!==activeId});
+    var dead=document.getElementById('g'+activeId);
+    if(dead)dead.remove();
+    if(S.selId===activeId){S.selId=null;S.selIds=[];selOv.innerHTML='';}
+    refreshLayers();
+    refreshProps();
+    drawSel();
+    return;
+  }
+  el.w=ted.offsetWidth/S.zoom;
+  el.h=ted.offsetHeight/S.zoom;
+  updateTextBounds(el);
+  renderEl(el);
+  refreshLayers();
+  refreshProps();
+  snapshot();
   drawSel();
 }
 

@@ -1,6 +1,9 @@
 # Devlog
 
 ## 2026-03-07
++ 
++ type edit corrections with duplicated while editing and changing color
++ also font sizes are added
 + Totally remade typo in program
 + Bounding box around editing text was remade. Compensations for not bouncing
 + Type edit added. Font, weight, align, line height, spacing, italic
