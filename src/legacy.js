@@ -968,7 +968,7 @@ function mkEl(type,ax,ay,w,h,extra){
     strokeAlign:'center',
     rx:0,opacity:1,fillMode:'solid',gradient:null,
     frameId:fr?fr.id:null,name:type+' '+(S.nid-1),
-    textBoxMode:type==='text'?'fixed':null
+    textBoxMode:type==='text'?'auto':null
   },extra);
   S.els.push(el); if(fr)fr.children.push(el.id);
   renderEl(el); refreshLayers(); return el;
@@ -2507,8 +2507,10 @@ canvas.addEventListener('mousedown',function(e){
   }
   if(S.tool==='text'){
     var sp=snapPt(pt);
-    var el=mkEl('text',sp.x,sp.y,0,0,{text:'',fs:18,fw:'400',fill:S.defFill,textAlign:'left',lineHeight:1.2,letterSpacing:0,fontStyle:'normal'});
-    selectEl(el.id); openTed(el); return;
+    S.textDraw={x:sp.x,y:sp.y,area:false};
+    ghostEllipse.style.display='none'; ghost.style.display='';
+    ghost.setAttribute('x',sp.x);ghost.setAttribute('y',sp.y);ghost.setAttribute('width',1);ghost.setAttribute('height',1);
+    return;
   }
   if(S.tool==='image')return;
   if(S.tool==='frame'){
@@ -2930,6 +2932,15 @@ canvas.addEventListener('mousemove',function(e){
     if(bw>4||bh>4){bandRect.style.display='block';bandRect.style.left=bx+'px';bandRect.style.top=by+'px';bandRect.style.width=bw+'px';bandRect.style.height=bh+'px';}
     return;
   }
+  if(S.textDraw){
+    var pt=svgPt(e),sp=snapPt(pt),td=S.textDraw;
+    if(!td.area&&(Math.abs(sp.x-td.x)>5||Math.abs(sp.y-td.y)>5))td.area=true;
+    if(td.area){
+      var tx=Math.min(sp.x,td.x),ty=Math.min(sp.y,td.y),tw=Math.abs(sp.x-td.x),th=Math.abs(sp.y-td.y);
+      ghost.setAttribute('x',tx);ghost.setAttribute('y',ty);ghost.setAttribute('width',tw);ghost.setAttribute('height',th);
+    }
+    return;
+  }
   if(S.frameDraw||S.drawing){
     var pt=svgPt(e),sp=snapPt(pt),ds=S.ds;
     if(S.drawing&&S.tool==='ellipse'){
@@ -2950,6 +2961,19 @@ canvas.addEventListener('mousemove',function(e){
 });
 
 canvas.addEventListener('mouseup',function(e){
+  if(S.textDraw){
+    var pt=svgPt(e),sp=snapPt(pt),td=S.textDraw;
+    var el;
+    if(td.area){
+      var x=Math.min(sp.x,td.x),y=Math.min(sp.y,td.y),w=Math.max(20,Math.abs(sp.x-td.x)),h=Math.max(20,Math.abs(sp.y-td.y));
+      el=mkEl('text',x,y,w,h,{text:'',fs:18,fw:'400',fill:S.defFill,textAlign:'left',lineHeight:1.2,letterSpacing:0,fontStyle:'normal',textBoxMode:'area'});
+    }else{
+      el=mkEl('text',td.x,td.y,1,1,{text:'',fs:18,fw:'400',fill:S.defFill,textAlign:'left',lineHeight:1.2,letterSpacing:0,fontStyle:'normal',textBoxMode:'auto'});
+    }
+    S.textDraw=null; ghost.style.display='none';
+    selectEl(el.id); openTed(el); snapshot();
+    return;
+  }
   if(S.penEditId&&S.penEditMarquee){
     var mq=S.penEditMarquee;
     var mr=selOv.querySelector('.pen-edit-marquee');if(mr)mr.remove();
@@ -3621,17 +3645,14 @@ function resizeTed(){
   var el=S.els.find(function(e){return e.id===tedId});
   if(!el)return;
   var zoom=S.zoom;
-  var isFixed=el.textBoxMode==='fixed';
-  if(isFixed){
+  var isArea=el.textBoxMode==='area'||el.textBoxMode==='fixed';
+  if(isArea){
     var fixedW=Math.max(1,(el.w||60)*zoom);
     ted.style.width=fixedW+'px';
     ted.style.height='1px';
     var contentH=Math.max(1,ted.scrollHeight);
-    var minH=Math.max(1,(el.h||20)*zoom);
-    var h=Math.max(contentH,minH);
-    ted.style.height=h+'px';
-    el.w=fixedW/zoom;
-    el.h=h/zoom;
+    ted.style.height=contentH+'px';
+    el.h=contentH/zoom;
   }else{
     ted.style.width='1px';
     ted.style.height='1px';
@@ -3664,9 +3685,9 @@ function openTed(el){
   ted.style.borderRadius='0';
   ted.style.resize='none';
   ted.style.overflow='hidden';
-  var isFixed=el.textBoxMode==='fixed';
-  ted.wrap=isFixed?'soft':'off';
-  ted.style.whiteSpace=isFixed?'pre-wrap':'pre';
+  var isArea=el.textBoxMode==='area'||el.textBoxMode==='fixed';
+  ted.wrap=isArea?'soft':'off';
+  ted.style.whiteSpace=isArea?'pre-wrap':'pre';
   ted.style.wordBreak='break-word';
   ted.style.fontSize=(fs*zoom)+'px';
   ted.style.fontWeight=el.fw||'400';
@@ -3699,7 +3720,7 @@ ted.addEventListener('keydown',function(e){if(e.key==='Escape'){e.preventDefault
 function updateTextBounds(el){
   if(!el.text)return;
   var m=measureText(el);
-  if(el.textBoxMode==='fixed'){
+  if(el.textBoxMode==='area'||el.textBoxMode==='fixed'){
     el.h=Math.max(el.h||0,m.h);
   }else{
     el.w=Math.max(1,m.w);
@@ -3735,7 +3756,7 @@ function commitText(){
     drawSel();
     return;
   }
-  if(el.textBoxMode==='fixed'){
+  if(el.textBoxMode==='area'||el.textBoxMode==='fixed'){
     el.h=ted.offsetHeight/S.zoom;
   }else{
     el.w=ted.offsetWidth/S.zoom;

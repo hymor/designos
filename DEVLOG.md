@@ -2,6 +2,11 @@
 
 ## 2026-03-07
 + 
++ while creating box, ellipse and line instrument selection remains
++ proportional scale creation added for objects: box, ellipse
++ ellipse creation remade - ghost spline added 
++ edit bounding box color changed to 7b61ff
++ fix for text dissapearing from artboard after edit
 + type edit corrections with duplicated while editing and changing color
 + also font sizes are added
 + Totally remade typo in program
