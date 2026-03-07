@@ -1,5 +1,10 @@
 # Devlog
 
+## 2026-03-07
++ Totally remade typo in program
++ Bounding box around editing text was remade. Compensations for not bouncing
++ Type edit added. Font, weight, align, line height, spacing, italic
+
 ## 2026-03-06
 + minimalistic tabs for projects
 + project saving and loading added
