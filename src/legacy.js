@@ -4155,8 +4155,8 @@ function refreshProps(){
     fsPresets.forEach(function(px){h+='<div class="pp-fs-opt" data-px="'+px+'" style="padding:6px 10px;cursor:pointer;font-size:12px" role="option">'+px+' px</div>';});
     h+='</div></div></div></div>';
     h+='<div class="pr" style="margin-top:6px"><span class="pl">Align</span><div class="g2" style="flex:1"><button type="button" class="preset-btn pp-text-align" data-align="left" '+( (T.textAlign||'left')==='left'?' style="border-color:var(--accent);color:var(--accent)"':'')+'>L</button><button type="button" class="preset-btn pp-text-align" data-align="center" '+((T.textAlign||'left')==='center'?' style="border-color:var(--accent);color:var(--accent)"':'')+'>C</button><button type="button" class="preset-btn pp-text-align" data-align="right" '+((T.textAlign||'left')==='right'?' style="border-color:var(--accent);color:var(--accent)"':'')+'>R</button></div></div>';
-    h+='<div class="pr" style="margin-top:6px"><span class="pl">LineH</span><input class="pi" id="pplineh" type="number" value="'+(T.lineHeight!=null&&T.lineHeight!==''?+T.lineHeight:1.2)+'" min="0.5" step="0.1" title="Line height multiplier"/></div>';
-    h+='<div class="pr" style="margin-top:6px"><span class="pl">Spacing</span><input class="pi" id="ppspacing" type="number" value="'+(T.letterSpacing!=null&&T.letterSpacing!==''?T.letterSpacing:0)+'" step="0.5" title="Letter spacing (px)"/></div>';
+    h+='<div class="pr" style="margin-top:6px"><span class="pl">LineH</span><div style="display:flex;align-items:center;gap:4px;flex:1;min-width:0"><input class="pi" id="pplineh" type="number" value="'+(T.lineHeight!=null&&T.lineHeight!==''?+T.lineHeight:1.2)+'" min="0.5" step="0.1" style="flex:1;min-width:0" title="Line height multiplier"/><span class="pp-drag-handle pp-drag-vertical" id="pplineh-drag" title="Drag to adjust">⇕</span></div></div>';
+    h+='<div class="pr" style="margin-top:6px"><span class="pl">Spacing</span><div style="display:flex;align-items:center;gap:4px;flex:1;min-width:0"><input class="pi" id="ppspacing" type="number" value="'+(T.letterSpacing!=null&&T.letterSpacing!==''?T.letterSpacing:0)+'" step="0.5" style="flex:1;min-width:0" title="Letter spacing (px)"/><span class="pp-drag-handle" id="ppspacing-drag" title="Drag to adjust">⇔</span></div></div>';
     h+='<div class="pr" style="margin-top:6px"><span class="pl">Italic</span><input type="checkbox" class="pi" id="ppitalic" '+( (T.fontStyle||'normal')==='italic'?'checked':'')+'/></div></div>';
   }
   h+='<div class="ps"><div class="ps-t">Name</div><div class="pr"><input class="pi" id="ppname" value="'+T.name+'"/></div></div>';
@@ -4282,6 +4282,60 @@ function refreshProps(){
   });
   bind('pplineh',function(e){var v=parseFloat(e.target.value);T.lineHeight=(isNaN(v)||v<=0)?1.2:v;if(T.type==='text')updateTextBounds(T);renderEl(T);snapshot();});
   bind('ppspacing',function(e){var v=e.target.value;T.letterSpacing=(v===''||v===null)?0:parseFloat(v);if(T.type==='text')updateTextBounds(T);renderEl(T);snapshot();});
+  (function(){
+    var linehDrag=document.getElementById('pplineh-drag');
+    var spacingDrag=document.getElementById('ppspacing-drag');
+    if(linehDrag){
+      linehDrag.addEventListener('mousedown',function(e){
+        e.preventDefault();
+        var startY=e.clientY;
+        var startVal=typeof T.lineHeight==='number'?T.lineHeight:(T.lineHeight!=null&&T.lineHeight!==''?parseFloat(T.lineHeight):1.2);
+        var inp=document.getElementById('pplineh');
+        function onMove(ev){
+          var dy=startY-ev.clientY;
+          var v=Math.max(0.5,Math.min(5,startVal+dy*0.003));
+          v=Math.round(v*100)/100;
+          T.lineHeight=v;
+          if(inp)inp.value=v;
+          if(T.type==='text')updateTextBounds(T);
+          renderEl(T);
+          drawSel();
+        }
+        function onUp(){
+          document.removeEventListener('mousemove',onMove);
+          document.removeEventListener('mouseup',onUp);
+          snapshot();
+        }
+        document.addEventListener('mousemove',onMove);
+        document.addEventListener('mouseup',onUp);
+      });
+    }
+    if(spacingDrag){
+      spacingDrag.addEventListener('mousedown',function(e){
+        e.preventDefault();
+        var startX=e.clientX;
+        var startVal=T.letterSpacing!=null&&T.letterSpacing!==''?parseFloat(T.letterSpacing):0;
+        var inp=document.getElementById('ppspacing');
+        function onMove(ev){
+          var dx=ev.clientX-startX;
+          var v=Math.max(-20,Math.min(50,startVal+dx*0.12));
+          v=Math.round(v*10)/10;
+          T.letterSpacing=v;
+          if(inp)inp.value=v;
+          if(T.type==='text')updateTextBounds(T);
+          renderEl(T);
+          drawSel();
+        }
+        function onUp(){
+          document.removeEventListener('mousemove',onMove);
+          document.removeEventListener('mouseup',onUp);
+          snapshot();
+        }
+        document.addEventListener('mousemove',onMove);
+        document.addEventListener('mouseup',onUp);
+      });
+    }
+  })();
   bind('ppitalic',function(e){T.fontStyle=e.target.checked?'italic':'normal';if(T.type==='text')updateTextBounds(T);renderEl(T);snapshot();});
   bind('ppname',function(e){T.name=e.target.value;if(isF)renderFrame(T);refreshLayers();});
   document.querySelectorAll('.fill-mode-btn').forEach(function(btn){
