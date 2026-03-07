@@ -1,6 +1,10 @@
 # Devlog
 
 ## 2026-03-06
++ minimalistic tabs for projects
++ project saving and loading added
++ besier fix after marque selection bug, and saving file status added
++ project naming changes for saving - now it has project name
 + group fold\unfold option added
 + multiple marque selection for vectors, also movement of selected points
 + modules are extracted from legacy.js
