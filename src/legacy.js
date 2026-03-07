@@ -1510,6 +1510,7 @@ function duplicateIds(ids){
       dup=dupGroupTree(g);
       dup.frameId=it.frameId||null;
       dup.groupId=it.groupId||null;
+      addChildToParent(dup.frameId,dup.groupId,dup.id);
       renderGroup(dup);
       newIds.push(dup.id);
       return;
@@ -1519,6 +1520,7 @@ function duplicateIds(ids){
       dup=dupFrameTree(f);
       dup.frameId=it.frameId||null;
       dup.groupId=it.groupId||null;
+      addChildToParent(dup.frameId,dup.groupId,dup.id);
       renderFrame(dup);
       newIds.push(dup.id);
       return;
@@ -1526,6 +1528,7 @@ function duplicateIds(ids){
     dup=dupElStandalone(it);
     dup.frameId=it.frameId||null;
     dup.groupId=it.groupId||null;
+    addChildToParent(dup.frameId,dup.groupId,dup.id);
     renderEl(dup);
     newIds.push(dup.id);
   });
