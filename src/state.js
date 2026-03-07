@@ -70,6 +70,7 @@ function getDom() {
     selOv: document.getElementById('sel-ov'),
     sgG: document.getElementById('smart-guides-g'),
     ghost: document.getElementById('ghost'),
+    ghostEllipse: document.getElementById('ghost-ellipse'),
     fghost: document.getElementById('fghost'),
     ted: document.getElementById('ted'),
     layersDiv: document.getElementById('layers'),

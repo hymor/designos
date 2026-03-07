@@ -11,7 +11,7 @@ import { createGradients } from './gradients.js';
 import { pathTightBBox } from './geometry.js';
 import { PRESETS, TOOLS } from './constants.js';
 
-const { canvas, defsEl, framesG, elsLoose, selOv, sgG, ghost, fghost, ted, layersDiv, propsDiv, bandRect, snapCvs } = dom;
+const { canvas, defsEl, framesG, elsLoose, selOv, sgG, ghost, ghostEllipse, fghost, ted, layersDiv, propsDiv, bandRect, snapCvs } = dom;
 
 // ── UTILS (from state/utils) ──
 function absPos(el){
@@ -71,7 +71,7 @@ function applyTr(){
   var t='translate('+S.px+','+S.py+') scale('+S.zoom+')';
   framesG.setAttribute('transform',t); elsLoose.setAttribute('transform',t);
   selOv.setAttribute('transform',t); sgG.setAttribute('transform',t);
-  ghost.setAttribute('transform',t); fghost.setAttribute('transform',t);
+  ghost.setAttribute('transform',t); ghostEllipse.setAttribute('transform',t); fghost.setAttribute('transform',t);
   document.getElementById('zoom-val').textContent=Math.round(S.zoom*100)+'%';
   drawSnapGrid();
 }
@@ -2515,8 +2515,14 @@ canvas.addEventListener('mousedown',function(e){
     var sp=snapPt(pt); S.frameDraw=true; S.ds=sp; fghost.style.display='';
     fghost.setAttribute('x',sp.x);fghost.setAttribute('y',sp.y);fghost.setAttribute('width',1);fghost.setAttribute('height',1); return;
   }
-  var sp=snapPt(pt); S.drawing=true; S.ds=sp; ghost.style.display='';
-  ghost.setAttribute('x',sp.x);ghost.setAttribute('y',sp.y);ghost.setAttribute('width',1);ghost.setAttribute('height',1);
+  var sp=snapPt(pt); S.drawing=true; S.ds=sp;
+  if(S.tool==='ellipse'){
+    ghost.style.display='none'; ghostEllipse.style.display='';
+    ghostEllipse.setAttribute('cx',sp.x);ghostEllipse.setAttribute('cy',sp.y);ghostEllipse.setAttribute('rx',0.5);ghostEllipse.setAttribute('ry',0.5);
+  } else {
+    ghostEllipse.style.display='none'; ghost.style.display='';
+    ghost.setAttribute('x',sp.x);ghost.setAttribute('y',sp.y);ghost.setAttribute('width',1);ghost.setAttribute('height',1);
+  }
 });
 
 canvas.addEventListener('dblclick',function(e){
@@ -2926,9 +2932,20 @@ canvas.addEventListener('mousemove',function(e){
   }
   if(S.frameDraw||S.drawing){
     var pt=svgPt(e),sp=snapPt(pt),ds=S.ds;
-    var g2=S.frameDraw?fghost:ghost;
-    if(S.tool==='line'){g2.setAttribute('x',ds.x);g2.setAttribute('y',ds.y);g2.setAttribute('width',sp.x-ds.x);g2.setAttribute('height',sp.y-ds.y);}
-    else{g2.setAttribute('x',Math.min(sp.x,ds.x));g2.setAttribute('y',Math.min(sp.y,ds.y));g2.setAttribute('width',Math.abs(sp.x-ds.x));g2.setAttribute('height',Math.abs(sp.y-ds.y));}
+    if(S.drawing&&S.tool==='ellipse'){
+      var ew=Math.abs(sp.x-ds.x),eh=Math.abs(sp.y-ds.y);
+      if(e.shiftKey){var side=Math.max(ew,eh); var endX=ds.x+(sp.x>=ds.x?side:-side),endY=ds.y+(sp.y>=ds.y?side:-side); ew=side;eh=side; sp={x:endX,y:endY}; }
+      var ex=Math.min(sp.x,ds.x),ey=Math.min(sp.y,ds.y);
+      ghostEllipse.setAttribute('cx',ex+ew/2);ghostEllipse.setAttribute('cy',ey+eh/2);ghostEllipse.setAttribute('rx',ew/2);ghostEllipse.setAttribute('ry',eh/2);
+    } else {
+      var g2=S.frameDraw?fghost:ghost;
+      if(S.tool==='line'){g2.setAttribute('x',ds.x);g2.setAttribute('y',ds.y);g2.setAttribute('width',sp.x-ds.x);g2.setAttribute('height',sp.y-ds.y);}
+      else{
+        var rw=Math.abs(sp.x-ds.x),rh=Math.abs(sp.y-ds.y);
+        if(!S.frameDraw&&(S.tool==='rect'||S.tool==='ellipse')&&e.shiftKey){var side=Math.max(rw,rh); var endX=ds.x+(sp.x>=ds.x?side:-side),endY=ds.y+(sp.y>=ds.y?side:-side); rw=side;rh=side; sp={x:endX,y:endY}; }
+        g2.setAttribute('x',Math.min(sp.x,ds.x));g2.setAttribute('y',Math.min(sp.y,ds.y));g2.setAttribute('width',rw);g2.setAttribute('height',rh);
+      }
+    }
   }
 });
 
@@ -3177,15 +3194,17 @@ if(S.bandSel){
     var fr=mkFrame(x,y,Math.max(20,w),Math.max(20,h)); selectEl(fr.id); setTool('select'); snapshot(); return;
   }
   if(S.drawing){
-    S.drawing=false; ghost.style.display='none';
+    S.drawing=false; ghost.style.display='none'; ghostEllipse.style.display='none';
     var pt=svgPt(e),sp=snapPt(pt),ds=S.ds;
-    var x=Math.min(sp.x,ds.x),y=Math.min(sp.y,ds.y),w=Math.abs(sp.x-ds.x),h=Math.abs(sp.y-ds.y);
+    var w=Math.abs(sp.x-ds.x),h=Math.abs(sp.y-ds.y);
+    if((S.tool==='rect'||S.tool==='ellipse')&&e.shiftKey){ var side=Math.max(w,h); var endX=ds.x+(sp.x>=ds.x?side:-side),endY=ds.y+(sp.y>=ds.y?side:-side); w=side;h=side; sp={x:endX,y:endY}; }
+    var x=Math.min(sp.x,ds.x),y=Math.min(sp.y,ds.y);
     if(w<4&&h<4)return;
     var el;if(S.tool==='line')el=mkEl('line',ds.x,ds.y,sp.x-ds.x,sp.y-ds.y);
     else el=mkEl(S.tool,x,y,Math.max(10,w),Math.max(10,h));
     // Run AL on parent frame if exists
     if(el.frameId){var pf=S.frames.find(function(f){return f.id===el.frameId});if(pf&&getAL(pf)){applyAutoLayout(pf);renderFrame(pf);}}
-    selectEl(el.id); setTool('select'); snapshot();
+    selectEl(el.id); if(S.tool!=='rect'&&S.tool!=='ellipse'&&S.tool!=='line') setTool('select'); snapshot();
   }
 });
 document.addEventListener('mouseup',function(){
