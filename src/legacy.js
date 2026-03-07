@@ -11,7 +11,7 @@ import { createGradients } from './gradients.js';
 import { pathTightBBox } from './geometry.js';
 import { PRESETS, TOOLS } from './constants.js';
 
-const { canvas, defsEl, framesG, elsLoose, selOv, sgG, ghost, ghostEllipse, fghost, ted, layersDiv, propsDiv, bandRect, snapCvs } = dom;
+const { canvas, defsEl, framesG, elsLoose, selOv, sgG, ghost, ghostEllipse, ghostLine, fghost, ted, layersDiv, propsDiv, bandRect, snapCvs } = dom;
 
 // ── UTILS (from state/utils) ──
 function absPos(el){
@@ -71,7 +71,7 @@ function applyTr(){
   var t='translate('+S.px+','+S.py+') scale('+S.zoom+')';
   framesG.setAttribute('transform',t); elsLoose.setAttribute('transform',t);
   selOv.setAttribute('transform',t); sgG.setAttribute('transform',t);
-  ghost.setAttribute('transform',t); ghostEllipse.setAttribute('transform',t); fghost.setAttribute('transform',t);
+  ghost.setAttribute('transform',t); ghostEllipse.setAttribute('transform',t); ghostLine.setAttribute('transform',t); fghost.setAttribute('transform',t);
   document.getElementById('zoom-val').textContent=Math.round(S.zoom*100)+'%';
   drawSnapGrid();
 }
@@ -2518,11 +2518,14 @@ canvas.addEventListener('mousedown',function(e){
     fghost.setAttribute('x',sp.x);fghost.setAttribute('y',sp.y);fghost.setAttribute('width',1);fghost.setAttribute('height',1); return;
   }
   var sp=snapPt(pt); S.drawing=true; S.ds=sp;
-  if(S.tool==='ellipse'){
-    ghost.style.display='none'; ghostEllipse.style.display='';
+  if(S.tool==='line'){
+    ghost.style.display='none'; ghostEllipse.style.display='none'; ghostLine.style.display='';
+    ghostLine.setAttribute('x1',sp.x);ghostLine.setAttribute('y1',sp.y);ghostLine.setAttribute('x2',sp.x);ghostLine.setAttribute('y2',sp.y);
+  } else if(S.tool==='ellipse'){
+    ghost.style.display='none'; ghostEllipse.style.display=''; ghostLine.style.display='none';
     ghostEllipse.setAttribute('cx',sp.x);ghostEllipse.setAttribute('cy',sp.y);ghostEllipse.setAttribute('rx',0.5);ghostEllipse.setAttribute('ry',0.5);
   } else {
-    ghostEllipse.style.display='none'; ghost.style.display='';
+    ghostEllipse.style.display='none'; ghostLine.style.display='none'; ghost.style.display='';
     ghost.setAttribute('x',sp.x);ghost.setAttribute('y',sp.y);ghost.setAttribute('width',1);ghost.setAttribute('height',1);
   }
 });
@@ -2948,9 +2951,11 @@ canvas.addEventListener('mousemove',function(e){
       if(e.shiftKey){var side=Math.max(ew,eh); var endX=ds.x+(sp.x>=ds.x?side:-side),endY=ds.y+(sp.y>=ds.y?side:-side); ew=side;eh=side; sp={x:endX,y:endY}; }
       var ex=Math.min(sp.x,ds.x),ey=Math.min(sp.y,ds.y);
       ghostEllipse.setAttribute('cx',ex+ew/2);ghostEllipse.setAttribute('cy',ey+eh/2);ghostEllipse.setAttribute('rx',ew/2);ghostEllipse.setAttribute('ry',eh/2);
+    } else if(S.drawing&&S.tool==='line'){
+      ghostLine.setAttribute('x1',ds.x);ghostLine.setAttribute('y1',ds.y);ghostLine.setAttribute('x2',sp.x);ghostLine.setAttribute('y2',sp.y);
     } else {
       var g2=S.frameDraw?fghost:ghost;
-      if(S.tool==='line'){g2.setAttribute('x',ds.x);g2.setAttribute('y',ds.y);g2.setAttribute('width',sp.x-ds.x);g2.setAttribute('height',sp.y-ds.y);}
+      if(S.tool==='line'){/* line uses ghostLine, not g2 */}
       else{
         var rw=Math.abs(sp.x-ds.x),rh=Math.abs(sp.y-ds.y);
         if(!S.frameDraw&&(S.tool==='rect'||S.tool==='ellipse')&&e.shiftKey){var side=Math.max(rw,rh); var endX=ds.x+(sp.x>=ds.x?side:-side),endY=ds.y+(sp.y>=ds.y?side:-side); rw=side;rh=side; sp={x:endX,y:endY}; }
@@ -3218,7 +3223,7 @@ if(S.bandSel){
     var fr=mkFrame(x,y,Math.max(20,w),Math.max(20,h)); selectEl(fr.id); setTool('select'); snapshot(); return;
   }
   if(S.drawing){
-    S.drawing=false; ghost.style.display='none'; ghostEllipse.style.display='none';
+    S.drawing=false; ghost.style.display='none'; ghostEllipse.style.display='none'; ghostLine.style.display='none';
     var pt=svgPt(e),sp=snapPt(pt),ds=S.ds;
     var w=Math.abs(sp.x-ds.x),h=Math.abs(sp.y-ds.y);
     if((S.tool==='rect'||S.tool==='ellipse')&&e.shiftKey){ var side=Math.max(w,h); var endX=ds.x+(sp.x>=ds.x?side:-side),endY=ds.y+(sp.y>=ds.y?side:-side); w=side;h=side; sp={x:endX,y:endY}; }

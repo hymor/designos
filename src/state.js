@@ -71,6 +71,7 @@ function getDom() {
     sgG: document.getElementById('smart-guides-g'),
     ghost: document.getElementById('ghost'),
     ghostEllipse: document.getElementById('ghost-ellipse'),
+    ghostLine: document.getElementById('ghost-line'),
     fghost: document.getElementById('fghost'),
     ted: document.getElementById('ted'),
     layersDiv: document.getElementById('layers'),

@@ -1,6 +1,8 @@
 # Devlog
 
 ## 2026-03-07
++ line creation remade
++ slider for fast increment\decrement font size, spacing and line height
 + saving status remade - saved and saving(showing cloud symbol)
 + saving zoom and user location on artboard
 + remade typo creation: area text, click text typo
