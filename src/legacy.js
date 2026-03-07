@@ -468,6 +468,14 @@ function defaultAL(){
          alignCross:'start',wrap:false,hugW:true,hugH:true};
 }
 function getAL(fr){return fr.autoLayout&&fr.autoLayout.enabled?fr.autoLayout:null;}
+function getLineEndpointsAbs(line){
+  var x1=line.x,y1=line.y,x2=line.x+(line.w||0),y2=line.y+(line.h||0);
+  if(line.frameId){
+    var pf=S.frames.find(function(f){return f.id===line.frameId;});
+    if(pf){var pa=absPos(pf);return [{x:pa.x+x1,y:pa.y+y1},{x:pa.x+x2,y:pa.y+y2}];}
+  }
+  return [{x:x1,y:y1},{x:x2,y:y2}];
+}
 
 function applyAutoLayout(fr){
   var al=getAL(fr);
@@ -2417,6 +2425,28 @@ if(ids.length===1){
         });
       })(T);
       grp.appendChild(rh);
+    } else if(T.type==='line'&&T.locked!==true){
+      // Редактирование линии как в Figma: две ручки на концах
+      var eps=getLineEndpointsAbs(T);
+      var lineColor=color;
+      eps.forEach(function(p,idx){
+        var circ=ns('circle');
+        circ.setAttribute('cx',p.x);circ.setAttribute('cy',p.y);circ.setAttribute('r',5/S.zoom);
+        circ.setAttribute('fill','#fff');circ.setAttribute('stroke',lineColor);circ.setAttribute('stroke-width',sw);
+        circ.style.cursor='move';
+        circ.setAttribute('pointer-events','all');
+        (function(i,line){
+          circ.addEventListener('mousedown',function(e){
+            if(line.locked===true)return;
+            e.stopPropagation();
+            S.lineEditEndpoint=i;
+            S.lineEditEl=line;
+            var both=getLineEndpointsAbs(line);
+            S.lineEditOther={x:both[1-i].x,y:both[1-i].y};
+          });
+        })(idx,T);
+        grp.appendChild(circ);
+      });
     }
 
   } else {
@@ -2642,6 +2672,24 @@ canvas.addEventListener('dblclick',function(e){
 
 canvas.addEventListener('mousemove',function(e){
   if(S.tool==='eyedropper'){edBadgeUpdate(e);return;}
+  if(S.lineEditEndpoint!==undefined&&S.lineEditEl){
+    var pt=svgPt(e),sp=snapPt(pt);
+    var line=S.lineEditEl;
+    var i=S.lineEditEndpoint;
+    var other=S.lineEditOther;
+    var p0=i===0?sp:other,p1=i===1?sp:other;
+    if(line.frameId){
+      var pf=S.frames.find(function(f){return f.id===line.frameId;});
+      if(pf){var pa=absPos(pf);
+        line.x=p0.x-pa.x;line.y=p0.y-pa.y;
+        line.w=p1.x-p0.x;line.h=p1.y-p0.y;
+      }
+    } else {
+      line.x=p0.x;line.y=p0.y;line.w=p1.x-p0.x;line.h=p1.y-p0.y;
+    }
+    renderEl(line);drawSel();
+    return;
+  }
   if(S.penEditId&&S.penEditMarquee){
     var pt=svgPt(e);
     S.penEditMarquee.x2=pt.x;S.penEditMarquee.y2=pt.y;
@@ -3120,6 +3168,10 @@ canvas.addEventListener('mouseup',function(e){
     S.penEditDragHandleNode=-1;S.penEditDragHandleSide='';S.penEditDragMoved=false;
     if(wasMoved){drawPenEditNodes();}
     snapshot();return;
+  }
+  if(S.lineEditEndpoint!==undefined){
+    S.lineEditEndpoint=undefined;S.lineEditEl=null;S.lineEditOther=null;
+    drawSel();snapshot();return;
   }
   if(S.panning){
     S.panning=false;
