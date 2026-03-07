@@ -57,7 +57,7 @@ function getBBox(item){
     }
     return{x:px,y:py,w:pw,h:ph};
   }
-  var ab=absPos(item);image.png
+  var ab=absPos(item);
   var w=item.w||0,h=item.h||0;
   if(item.type==='line'){return{x:ab.x+Math.min(0,w),y:ab.y+Math.min(0,h),w:Math.abs(w),h:Math.abs(h)};}
   if(!item.rotation)return{x:ab.x,y:ab.y,w:w,h:h};
@@ -1085,7 +1085,7 @@ function renderEl(el){
     var grp=S.groups.find(function(g){return g.id===el.groupId});
     if(grp){renderGroup(grp);return;}
   }
-  if(el.frameId){var fc=getFCG(el.frameId);if(fc)renderElInto(el,fc);}
+  if(el.frameId){var fc=getFCG(el.frameId);if(fc)renderElInto(el,fc);else{el.frameId=null;renderElInto(el,elsLoose);}}
   else renderElInto(el,elsLoose);
 }
 function renderElInto(el,pg,inGroup){
@@ -1216,6 +1216,7 @@ function renderElInto(el,pg,inGroup){
   if(S.tool!=='select')return;
   if(S.penEditId)return;
   e.stopPropagation();
+  console.log('down', cap.type, cap.id);
 
   var add = e.shiftKey||e.ctrlKey||e.metaKey;
 
@@ -1253,6 +1254,7 @@ function renderElInto(el,pg,inGroup){
     if(!canFreeDragChild(cap))return;
     S.dragging=true;
     S.dragEl=cap;
+    console.log('drag start', S.dragEl&&S.dragEl.type, S.dragEl&&S.dragEl.id);
     var ab=cap.type==='path'?getBBox(cap):absPos(cap);
     S.dragS={mx:pt.x,my:pt.y,ox:ab.x,oy:ab.y,rx:cap.x,ry:cap.y};
   }
@@ -2869,19 +2871,27 @@ canvas.addEventListener('mousemove',function(e){
     }
     // ---- /MULTI DRAG ----
     var pt=svgPt(e),dx=pt.x-S.dragS.mx,dy=pt.y-S.dragS.my;
+    if(S.dragging&&S.dragEl){
+      console.log('drag move', S.dragEl.type, S.dragEl.id, dx, dy);
+    }
     var isFr=S.frames.indexOf(S.dragEl)>=0;
     if(isFr){
+      console.log('drag: isFr branch', S.dragEl.id);
       var nx=snapV(S.dragS.ox+dx);
       var ny=snapV(S.dragS.oy+dy);
       var sg=applySmartGuides(S.dragEl,nx,ny);
+      console.log('before move', S.dragEl.type, S.dragEl.x, S.dragEl.y);
       S.dragEl.x=nx+sg.dx;
       S.dragEl.y=ny+sg.dy;
+      console.log('after move', S.dragEl.type, S.dragEl.x, S.dragEl.y);
       renderFrame(S.dragEl);
     } else {
       var nx,ny,absX,absY;
       var isGroup=S.groups.indexOf(S.dragEl)>=0;
       var isPath=S.dragEl.type==='path';
+      console.log('single-drag else', S.dragEl.id, S.dragEl.type, 'isGroup='+isGroup, 'isPath='+isPath, 'frameId='+S.dragEl.frameId);
       if(isGroup){
+        console.log('drag: isGroup branch', S.dragEl.id);
         // Move group: translate SVG transform, update state on mouseup
         nx=snapV(S.dragS.ox+dx); ny=snapV(S.dragS.oy+dy);
         var ddx=nx-S.dragS.ox, ddy=ny-S.dragS.oy;
@@ -2892,6 +2902,7 @@ canvas.addEventListener('mousemove',function(e){
         }
         absX=nx; absY=ny;
       } else if(isPath){
+        console.log('drag: isPath branch', S.dragEl.id);
         // Move path: translate SVG transform, preserve rotation; update pts on mouseup
         nx=snapV(S.dragS.ox+dx); ny=snapV(S.dragS.oy+dy);
         var ddxp=nx-S.dragS.ox, ddyp=ny-S.dragS.oy;
@@ -2921,16 +2932,33 @@ canvas.addEventListener('mousemove',function(e){
         setDropTarget(hovFrP?hovFrP.id:null);
       } else if(S.dragEl.frameId){
         var pf=S.frames.find(function(f){return f.id===S.dragEl.frameId});
-        if(pf){
+        var fc=getFCG(S.dragEl.frameId);
+        if(pf&&fc){
           var rawRelX=S.dragS.rx+dx, rawRelY=S.dragS.ry+dy;
           nx=snapV(rawRelX); ny=snapV(rawRelY);
+          console.log('before move (inFrame)', S.dragEl.id, S.dragEl.x, S.dragEl.y);
           S.dragEl.x=nx; S.dragEl.y=ny;
+          console.log('after move (inFrame)', S.dragEl.id, S.dragEl.x, S.dragEl.y);
           absX=pf.x+nx; absY=pf.y+ny;
+        } else {
+          nx=snapV(S.dragS.ox+dx); ny=snapV(S.dragS.oy+dy);
+          var sg=applySmartGuides(S.dragEl,nx,ny);
+          console.log('before move (pf null)', S.dragEl.id, S.dragEl.x, S.dragEl.y);
+          S.dragEl.x=nx+sg.dx; S.dragEl.y=ny+sg.dy;
+          console.log('after move (pf null)', S.dragEl.id, S.dragEl.x, S.dragEl.y);
+          absX=S.dragEl.x; absY=S.dragEl.y;
         }
       } else {
         nx=snapV(S.dragS.ox+dx); ny=snapV(S.dragS.oy+dy);
-        var sg=applySmartGuides(S.dragEl,nx,ny);
-        S.dragEl.x=nx+sg.dx; S.dragEl.y=ny+sg.dy;
+        console.log('before move (loose)', S.dragEl.id, S.dragEl.x, S.dragEl.y, 'nx=', nx, 'ny=', ny);
+        try {
+          var sg=applySmartGuides(S.dragEl,nx,ny);
+          S.dragEl.x=nx+sg.dx; S.dragEl.y=ny+sg.dy;
+          console.log('after move (loose)', S.dragEl.id, S.dragEl.x, S.dragEl.y);
+        } catch(err){
+          console.error('loose drag error', err);
+          S.dragEl.x=nx; S.dragEl.y=ny;
+        }
         absX=S.dragEl.x; absY=S.dragEl.y;
       }
       if(!isPath){
