@@ -864,8 +864,13 @@ function _buildFrameSVG(fr){
   if(fr.opacity!=null&&fr.opacity<1)fg.setAttribute('opacity',fr.opacity);
   var strokeColor=fr.isComponent?'#f7c948':fr.isInstance?'#c4a0f7':'#3ecf8e';
   var alLabel=getAL(fr)?(getAL(fr).dir==='h'?' ⇄':' ⇅'):'';
-  // Label group is appended FIRST so it renders above the clip group but is still part of fg transform
-  // It sits outside clip so it's never hidden
+  var headerH=24/S.zoom;
+  var headerHit=ns('rect');
+  headerHit.setAttribute('x',0);headerHit.setAttribute('y',-headerH);
+  headerHit.setAttribute('width',Math.max(fr.w,1));headerHit.setAttribute('height',headerH);
+  headerHit.setAttribute('fill','transparent');headerHit.setAttribute('stroke','none');
+  headerHit.style.cursor='move';
+  fg.appendChild(headerHit);
   var lblG=ns('g');lblG.setAttribute('pointer-events','none');
   var lbl=ns('text');lbl.setAttribute('x',0);lbl.setAttribute('y',-6/S.zoom);
   lbl.setAttribute('font-size',11/S.zoom);lbl.setAttribute('fill',strokeColor);lbl.setAttribute('font-family','system-ui,sans-serif');
@@ -893,43 +898,22 @@ function _buildFrameSVG(fr){
     var cf=S.frames.find(function(f){return f.id===cid});
     if(cf){ var cfg=_buildFrameSVG(cf); if(cfg) fc.appendChild(cfg); }
   });
+  function frameSurfaceMousedown(cap,e){
+    if(S.tool!=='select')return;
+    e.stopPropagation();
+    var add=e.shiftKey||e.ctrlKey||e.metaKey;
+    if(!add&&cap.frameId&&getActiveFrameId()!==cap.frameId){selectEl(cap.frameId);return;}
+    var wasMulti=(S.selIds&&S.selIds.length>1&&isSelected(cap.id)&&!add);
+    var preSelIds=wasMulti?S.selIds.slice():null;
+    if(!wasMulti){selectEl(cap.id,add);}
+    var pt=svgPt(e);
+    if(e.altKey){var ids=preSelIds?preSelIds:[cap.id];var newIds=duplicateIds(ids);startMultiDrag(newIds,newIds[newIds.length-1],pt);return;}
+    if(preSelIds){startMultiDrag(preSelIds,cap.id,pt);return;}
+    if(!add){startFrameDrag(cap,pt);}
+  }
   (function(cap){
-    bg.addEventListener('mousedown',function(e){
-      if(S.tool!=='select')return;
-      e.stopPropagation();
-
-      var add = e.shiftKey||e.ctrlKey||e.metaKey;
-
-      // Figma-style surface selection: first click on nested frame selects parent frame
-      if(!add && cap.frameId && getActiveFrameId()!==cap.frameId){
-        selectEl(cap.frameId);return;
-      }
-
-      var wasMulti = (S.selIds && S.selIds.length>1 && isSelected(cap.id) && !add);
-      var preSelIds = wasMulti ? S.selIds.slice() : null;
-
-      if(!wasMulti){
-        selectEl(cap.id, add);
-      }
-
-      var pt = svgPt(e);
-
-      if(e.altKey){
-        var ids = preSelIds ? preSelIds : [cap.id];
-        var newIds = duplicateIds(ids);
-        startMultiDrag(newIds, newIds[newIds.length-1], pt);
-        return;
-      }
-
-      if(preSelIds){
-        startMultiDrag(preSelIds, cap.id, pt);
-        return;
-      }
-
-      if(!add){
-        startFrameDrag(cap,pt);
-      }
-    });
+    headerHit.addEventListener('mousedown',function(e){frameSurfaceMousedown(cap,e);});
+    bg.addEventListener('mousedown',function(e){frameSurfaceMousedown(cap,e);});
   })(fr);
   return fg;
 }
