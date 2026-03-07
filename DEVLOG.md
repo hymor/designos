@@ -1,6 +1,7 @@
 # Devlog
 
 ## 2026-03-07
++ text align symbols remade
 + text color by default is set to #000000
 + ellipse to path convertion added
 + rectangle to path convertion added
