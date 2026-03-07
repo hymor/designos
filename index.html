@@ -110,6 +110,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--surface3);border:1px solid var(--border);color:var(--text);font-size:12px;padding:7px 16px;border-radius:8px;opacity:0;transition:all .2s;pointer-events:none;z-index:999;white-space:nowrap}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 #proj-input,#img-input{display:none}
+/* Object context menu (dropdown) */
+#obj-context-menu{position:fixed;z-index:300;min-width:160px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 0;box-shadow:0 8px 24px rgba(0,0,0,.4);display:none}
+#obj-context-menu.show{display:block}
+.obj-ctx-item{display:flex;align-items:center;gap:8px;width:100%;padding:8px 14px;border:none;background:transparent;color:var(--text);font-size:12px;cursor:pointer;text-align:left;font-family:inherit}
+.obj-ctx-item:hover{background:var(--surface3)}
+.obj-ctx-item:disabled{color:var(--text3);cursor:not-allowed;opacity:.7}
+.obj-ctx-item:disabled:hover{background:transparent}
+.obj-ctx-sep{height:1px;background:var(--border);margin:4px 0}
 /* Auto Layout */
 .al-section{border:1px solid rgba(123,97,255,0.3);border-radius:6px;margin:0 14px 0;padding:8px 10px;}
 .al-toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:0;}
@@ -350,6 +358,7 @@ rect[data-drop]{stroke:#7b61ff!important;stroke-width:2px!important;filter:drop-
 </div>
 <textarea id="ted" rows="1"></textarea>
 <div id="toast"></div>
+<div id="obj-context-menu"></div>
 <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
