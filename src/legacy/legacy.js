@@ -964,7 +964,8 @@ function renderChildrenWithMasks(childIds, parentNode, ownerFrameId, ownerGroupI
       var maskDom = parentNode.lastChild;
       if(maskDom){
         maskDom.setAttribute('data-mask-source', '1');
-        maskDom.setAttribute('opacity', '0.18');
+        maskDom.setAttribute('opacity', '0');
+        maskDom.setAttribute('pointer-events', 'none');
       }
       return;
     }
@@ -1180,11 +1181,28 @@ function mkEl(type,ax,ay,w,h,extra){
   S.els.push(el); if(fr)fr.children.push(el.id);
   renderEl(el); refreshLayers(); return el;
 }
+function containerHasMask(el){
+  var childIds = getContainerChildIds(el);
+  for(var i = 0; i < childIds.length; i++){
+    var it = findAny(childIds[i]);
+    if(it && it.isMask) return true;
+  }
+  return false;
+}
 function renderEl(el){
   if(el.groupId){
-    // re-render the whole group so child stays inside it
     var grp=S.groups.find(function(g){return g.id===el.groupId});
     if(grp){renderGroup(grp);return;}
+  }
+  if(containerHasMask(el)){
+    if(el.frameId){
+      var fr=S.frames.find(function(f){return f.id===el.frameId});
+      if(fr){ var fc=getFCG(fr.id); if(fc){ fc.innerHTML=''; renderChildrenWithMasks(fr.children||[],fc,fr.id,null); } return; }
+    } else {
+      elsLoose.innerHTML='';
+      renderChildrenWithMasks(getRootLooseChildIds(),elsLoose,null,null);
+      return;
+    }
   }
   if(el.frameId){var fc=getFCG(el.frameId);if(fc)renderElInto(el,fc);else{el.frameId=null;renderElInto(el,elsLoose);}}
   else renderElInto(el,elsLoose);
@@ -2024,6 +2042,19 @@ function sameContainerForMask(items){
     return ((it.frameId || 'root') + '|' + (it.groupId || 'nogroup')) === key0;
   });
 }
+/** Returns ordered child ids of the container that holds the item (frame, group, or root). */
+function getContainerChildIds(item){
+  if(!item) return [];
+  if(item.groupId){
+    var g = S.groups.find(function(gr){ return gr.id === item.groupId; });
+    return (g && g.children) ? g.children.slice() : [];
+  }
+  if(item.frameId){
+    var fr = S.frames.find(function(f){ return f.id === item.frameId; });
+    return (fr && fr.children) ? fr.children.slice() : [];
+  }
+  return getRootLooseChildIds();
+}
 function canBeMaskSource(item){
   if(!item) return false;
   return item.type === 'rect' || item.type === 'ellipse' || item.type === 'path';
@@ -2031,7 +2062,7 @@ function canBeMaskSource(item){
 function makeMask(){
   var ids = S.selIds.length ? S.selIds.slice() : (S.selId ? [S.selId] : []);
   if(ids.length < 2){
-    toast('Select 2+ objects: top shape = mask');
+    toast('Select 2+ objects: last selected = mask');
     return;
   }
   var items = ids.map(findAny).filter(Boolean);
@@ -4557,7 +4588,7 @@ function refreshProps(){
   if(isMaskLayer){
     h += '<div class="ps">';
     h += '<div class="ps-t">⬡ Mask Layer</div>';
-    h += '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Masks next sibling layers in the same container</div>';
+    h += '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Clips the layers below it. Mask = last selected of the two.</div>';
     h += '<button class="del-btn" id="release-mask-btn" style="margin-bottom:6px;background:rgba(123,97,255,0.1);border-color:var(--accent);color:var(--accent)">Release Mask</button>';
     h += '</div>';
   }
