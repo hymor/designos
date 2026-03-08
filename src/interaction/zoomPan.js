@@ -1,6 +1,6 @@
 // DesignOS – zoom (wheel + buttons) and pan state (applyTr stays in legacy)
 
-import { S, dom } from './state.js';
+import { S, dom } from '../core/state.js';
 
 export function createZoomPan(deps) {
   const { applyTr, drawSel, renderFrame, clamp } = deps;

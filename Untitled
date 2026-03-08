@@ -1,0 +1,72 @@
+# =========================
+# DEPENDENCIES
+# =========================
+node_modules/
+bower_components/
+
+
+# =========================
+# MAP FILES
+# =========================
+*.map
+
+# =========================
+# MEDIA (агенту не нужно читать картинки)
+# =========================
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.mp4
+*.mov
+*.avi
+*.zip
+*.rar
+*.7z
+
+# =========================
+# GENERATED ASSETS
+# =========================
+public/generated/
+exports/
+renders/
+screenshots/
+
+# =========================
+# BACKUPS / TEMP FILES
+# =========================
+backup/
+backups/
+tmp/
+temp/
+*.bak
+*.old
+*.copy
+
+# =========================
+# EDITOR FILES
+# =========================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# =========================
+# TEST OUTPUT
+# =========================
+coverage/
+test-results/
+
+# =========================
+# LARGE DATA FILES
+# =========================
+*.csv
+*.jsonl
+*.parquet
+
+# =========================
+# OPTIONAL: LARGE JSON
+# =========================
+large-data/
+datasets/

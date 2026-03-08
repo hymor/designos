@@ -1,5 +1,11 @@
 # Devlog
 
+## 2026-03-08
++ tree layers order changing by mouse
++ masks remaking attempt 
++ remade structure and relocated files
++ .cursorignore file added
+
 ## 2026-03-07
 + text align symbols remade
 + text color by default is set to #000000

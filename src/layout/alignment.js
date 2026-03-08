@@ -1,6 +1,6 @@
 // DesignOS – align and distribute selected items
 
-import { S } from './state.js';
+import { S } from '../core/state.js';
 
 export function createAlignment(deps) {
   const { getBBox, absPos, renderFrame, renderEl, drawSel, refreshProps, snapshot, toast } = deps;

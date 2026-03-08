@@ -1,6 +1,6 @@
 // DesignOS – snap grid overlay (canvas 2d)
 
-import { S, dom } from './state.js';
+import { S, dom } from '../core/state.js';
 
 export function createSnapGrid(deps) {
   const { toast } = deps;

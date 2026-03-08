@@ -51,6 +51,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-famil
 .li.frame-li{color:var(--green);opacity:.9}
 .li.frame-li.sel{background:rgba(62,207,142,0.1);border-left-color:var(--green);color:var(--green)}
 .li.child-li{padding-left:28px}
+.li.draggable{cursor:grab}
+.li.li-dragging{opacity:.5;cursor:grabbing}
+.li.li-drop-target{background:rgba(123,97,255,0.15);border-left-color:var(--accent)}
+.li-drop-line{height:2px;background:var(--accent);margin:0;padding:0;pointer-events:none;display:none;flex-shrink:0;position:relative;box-sizing:border-box}
+.li-drop-line .li-drop-line-v{position:absolute;left:0;top:-4px;width:2px;height:10px;background:var(--accent);border-radius:1px}
 .li-icon{font-size:10px;opacity:.6;flex-shrink:0;width:14px;min-width:14px;text-align:center;display:inline-flex;align-items:center;justify-content:center}
 .li-rest{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
 .li-rest span:first-of-type{flex-shrink:0}
@@ -359,6 +364,6 @@ rect[data-drop]{stroke:#7b61ff!important;stroke-width:2px!important;filter:drop-
 <textarea id="ted" rows="1"></textarea>
 <div id="toast"></div>
 <div id="obj-context-menu"></div>
-<script type="module" src="/src/main.ts"></script>
+<script type="module" src="/src/app/main.ts"></script>
 </body>
 </html>

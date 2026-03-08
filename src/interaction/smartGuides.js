@@ -1,6 +1,6 @@
-// DesignOS – smart guides (snap to other elements’ edges/centers)
+// DesignOS – smart guides (snap to other elements' edges/centers)
 
-import { S, dom } from './state.js';
+import { S, dom } from '../core/state.js';
 
 const GUIDE_THRESH = 6; // snap distance in canvas px (before zoom)
 

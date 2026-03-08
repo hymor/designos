@@ -5,3 +5,10 @@ build/
 *.log
 .DS_Store
 design-mvp.html
+design-mvp.bak
+*.log
+*.map
+*.min.js
+public/generated/
+exports/
+backups/

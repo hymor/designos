@@ -1,6 +1,6 @@
 // DesignOS – gradient SVG defs and CSS/object helpers
 
-import { dom } from './state.js';
+import { dom } from '../core/state.js';
 
 export function createGradients(deps) {
   const { ns } = deps;
