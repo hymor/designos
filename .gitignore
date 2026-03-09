@@ -12,3 +12,13 @@ design-mvp.bak
 public/generated/
 exports/
 backups/
+
+# Backend build artifacts and dependencies
+backend/node_modules/
+backend/dist/
+
+# IDE / tool artifacts
+.cursor/
+
+# Archives
+*.zip
