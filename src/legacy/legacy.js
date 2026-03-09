@@ -1,7 +1,7 @@
 // Architecture: frames use translate(x,y) transform so children (relative coords) follow automatically.
 
 import { S, dom } from '../core/state.js';
-import { ns, clamp, deep, uid, movePt, toast, svgPt, snapV, snapPt } from '../core/utils.js';
+import { ns, clamp, deep, uid, movePt, toast, svgPt, snapV, snapPt } from '../utils/utils.js';
 import { createUndo } from '../history/undo.js';
 import { createSmartGuides } from '../interaction/smartGuides.js';
 import { createFrameTree } from '../layout/frameTree.js';

@@ -1,6 +1,16 @@
 # Devlog
 
+## 2026-03-09
++ tables basic functionality added
++ fill and stroke added to tables
++ enabled typo editing in project
++ removed green stroke border around frame
++ tree order is now saved in file
++ now enabling moving mask and masked object separate from group mask
++ corrected bug with drawing masked object on first start
+
 ## 2026-03-08
++ AGENT_RULES.md added
 + tree layers order changing by mouse
 + masks remaking attempt 
 + remade structure and relocated files

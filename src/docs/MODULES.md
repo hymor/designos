@@ -4,7 +4,8 @@
 
 ```
 src/
-  core/         state.js, constants.js, utils.js
+  core/         state.js, constants.js
+  utils/        utils.js
   geometry/     geometry.js
   render/       gradients.js
   layout/       alignment.js, frameTree.js
@@ -35,7 +36,7 @@ src/
 ## Current modules (working)
 
 - `core/state.js` – S, dom
-- `core/utils.js` – ns, clamp, deep, uid, toast, etc.
+- `utils/utils.js` – ns, clamp, deep, uid, toast, etc.
 - `core/constants.js` – PRESETS, TOOLS
 - `geometry/geometry.js` – pathTightBBox(pts, closed) (pure)
 - `render/gradients.js` – createGradients → buildGradDef, defGrad, hexToRgba, gradCSS

@@ -1,6 +1,6 @@
 Rules for modifying the editor:
 
-1. Utils (toast, snaps) in src/core/utils.js
+1. Utils (toast, snaps) in src/utils/utils.js
 2. FrameTree logic in src/layout/frameTree.js
 3. Zoom and pan logic in src/interaction/zoomPan.js
 4. Undo logic in src/history/undo.js

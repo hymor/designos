@@ -1,6 +1,6 @@
 // DesignOS – shared helpers (depend only on state/dom)
 
-import { S, dom } from './state.js';
+import { S, dom } from '../core/state.js';
 
 export function ns(t) {
   return document.createElementNS('http://www.w3.org/2000/svg', t);
