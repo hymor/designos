@@ -12,7 +12,9 @@ import {
   template: `
     <div class="properties-panel">
       <div class="panel-title">Properties</div>
-      @if (props; as p) {
+      @if (!bridgeAvailable) {
+        <p class="no-selection bridge-unavailable">Bridge unavailable</p>
+      } @else if (props; as p) {
         <dl class="props-list">
           <dt>id</dt><dd>{{ p.id }}</dd>
           <dt>type</dt><dd>{{ p.type }}</dd>
@@ -52,6 +54,9 @@ import {
         color: #888;
         font-size: 0.875rem;
       }
+      .bridge-unavailable {
+        color: #c00;
+      }
     `,
   ],
 })
@@ -60,6 +65,10 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
 
   constructor(private readonly editorFacade: EditorFacadeService) {}
+
+  get bridgeAvailable(): boolean {
+    return this.editorFacade.isBridgeAvailable();
+  }
 
   ngOnInit(): void {
     this.editorFacade.selection$
