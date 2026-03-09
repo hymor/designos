@@ -208,6 +208,22 @@ rect[data-drop]{stroke:#7b61ff!important;stroke-width:2px!important;filter:drop-
 .svg-paste-opt svg{margin-bottom:4px;opacity:.6}
 .svg-paste-cancel{background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;align-self:center;padding:4px 8px;border-radius:4px}
 .svg-paste-cancel:hover{color:var(--text)}
+/* ── Table Create Modal ── */
+#table-create-modal{position:fixed;inset:0;z-index:1100;display:none;align-items:center;justify-content:center}
+.table-create-ov{position:absolute;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px)}
+.table-create-dialog{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;width:320px;max-width:95vw;box-shadow:0 24px 64px rgba(0,0,0,.7);display:flex;flex-direction:column;gap:20px}
+.table-create-title{font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin:0}
+.table-create-row{display:flex;flex-direction:column;gap:6px}
+.table-create-row label{font-size:12px;color:var(--text3);font-weight:500}
+.table-create-row input{background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:14px;color:var(--text);outline:none;transition:border-color .15s}
+.table-create-row input:focus{border-color:var(--accent)}
+.table-create-row input::-webkit-inner-spin-button,.table-create-row input::-webkit-outer-spin-button{opacity:1}
+.table-create-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:4px}
+.table-create-btn{height:36px;padding:0 18px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s,background .15s}
+.table-create-btn.cancel{background:var(--surface2);border:1.5px solid var(--border);color:var(--text2)}
+.table-create-btn.cancel:hover{background:var(--surface3);border-color:var(--text3)}
+.table-create-btn.ok{background:var(--accent);border:none;color:#fff}
+.table-create-btn.ok:hover{opacity:.9}
 /* ── Recent Projects Modal ── */
 .recent-modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center}
 .recent-ov{position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:0}
@@ -264,6 +280,7 @@ rect[data-drop]{stroke:#7b61ff!important;stroke-width:2px!important;filter:drop-
   <button class="tbtn" id="t-ellipse" title="Ellipse (O)"><svg width="13" height="13" viewBox="0 0 13 13"><ellipse cx="6.5" cy="6.5" rx="5.5" ry="5.5" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></button>
   <button class="tbtn" id="t-line" title="Line (L)"><svg width="13" height="13" viewBox="0 0 13 13"><line x1="1.5" y1="11.5" x2="11.5" y2="1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
   <button class="tbtn" id="t-text" title="Text (T)"><svg width="13" height="13" viewBox="0 0 13 13"><path d="M1.5 3h10M6.5 3v7M4.5 10h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+  <button class="tbtn" id="t-table" title="Table"><svg width="13" height="13" viewBox="0 0 13 13"><rect x="1" y="1" width="11" height="11" rx="1" stroke="currentColor" stroke-width="1.2" fill="none"/><line x1="4" y1="1" x2="4" y2="12" stroke="currentColor" stroke-width="1"/><line x1="8" y1="1" x2="8" y2="12" stroke="currentColor" stroke-width="1"/><line x1="1" y1="4" x2="12" y2="4" stroke="currentColor" stroke-width="1"/><line x1="1" y1="8" x2="12" y2="8" stroke="currentColor" stroke-width="1"/></svg></button>
   <button class="tbtn" id="t-image" title="Image"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.4" fill="none"/><circle cx="4.5" cy="5.5" r="1" fill="currentColor"/><path d="M1 10l3-3 2.5 2.5L9 7l4 4" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/></svg></button>
   <button class="tbtn" id="t-eyedropper" title="Eyedropper (I)"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M9.5 1.5a2 2 0 012.8 2.8L11 5.7 8.3 3l1.2-1.5z" fill="currentColor" opacity=".8"/><path d="M8.3 3L3.5 7.8l-.8 2.8 2.8-.8L10.3 5 8.3 3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none"/><circle cx="2.8" cy="11.2" r="1.2" fill="currentColor" opacity=".5"/></svg></button>
   <div class="tsep"></div>
@@ -332,6 +349,24 @@ rect[data-drop]{stroke:#7b61ff!important;stroke-width:2px!important;filter:drop-
       </button>
     </div>
     <button class="svg-paste-cancel" onclick="cancelSVGPaste()">Cancel (Esc)</button>
+  </div>
+</div>
+<div id="table-create-modal" style="display:none" class="table-create-modal">
+  <div class="table-create-ov" id="table-create-ov"></div>
+  <div class="table-create-dialog">
+    <h2 class="table-create-title">Создать таблицу</h2>
+    <div class="table-create-row">
+      <label for="table-rows-input">Строк</label>
+      <input type="number" id="table-rows-input" min="1" max="50" value="3" />
+    </div>
+    <div class="table-create-row">
+      <label for="table-cols-input">Столбцов</label>
+      <input type="number" id="table-cols-input" min="1" max="20" value="3" />
+    </div>
+    <div class="table-create-actions">
+      <button type="button" class="table-create-btn cancel" id="table-create-cancel">Отмена</button>
+      <button type="button" class="table-create-btn ok" id="table-create-ok">Создать</button>
+    </div>
   </div>
 </div>
 <div id="recent-modal" style="display:none" class="recent-modal">

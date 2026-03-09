@@ -9,12 +9,14 @@ import { createSnapGrid } from '../interaction/snapGrid.js';
 import { createGradients } from '../render/gradients.js';
 import { pathTightBBox } from '../geometry/geometry.js';
 import { PRESETS, TOOLS } from '../core/constants.js';
+import * as tableModule from '../table/table.js';
 
 const { canvas, defsEl, framesG, elsLoose, selOv, sgG, ghost, ghostEllipse, ghostLine, fghost, ted, layersDiv, propsDiv, bandRect, snapCvs } = dom;
 
 // ── UTILS (from state/utils) ──
 function absPos(el){
   if(el.frameId){var f=S.frames.find(function(f){return f.id===el.frameId});if(f){var fp=absPos(f);return{x:fp.x+el.x,y:fp.y+el.y};}}
+  if(el.tableCell){var tab=S.els.find(function(e){return e.id===el.tableCell.tableId})||S.frames.find(function(f){return f.id===el.tableCell.tableId});if(tab){var tp=absPos(tab);return{x:tp.x+el.x,y:tp.y+el.y};}}
   return{x:el.x,y:el.y};
 }
 function measureText(el){
@@ -41,6 +43,7 @@ function measureText(el){
 }
 function getBBox(item){
   if(item.type==='group') return getGroupBBox(item);
+  if(item.type==='table'){ var bb=tableModule.getTableBBox(item); var ab=absPos(item); return{x:ab.x,y:ab.y,w:bb.w,h:bb.h}; }
   if(item.type==='text'){
     var ab=absPos(item);
     var m=measureText(item);
@@ -869,7 +872,7 @@ function getRootChildIds(){
     .filter(function(g){ return !g.frameId && !g.groupId; })
     .forEach(function(g){ ids.push(g.id); });
   S.els
-    .filter(function(e){ return !e.frameId && !e.groupId; })
+    .filter(function(e){ return !e.frameId && !e.groupId && !e.tableCell; })
     .forEach(function(e){ ids.push(e.id); });
   return ids;
 }
@@ -879,7 +882,7 @@ function getRootLooseChildIds(){
     .filter(function(g){ return !g.frameId && !g.groupId; })
     .forEach(function(g){ ids.push(g.id); });
   S.els
-    .filter(function(e){ return !e.frameId && !e.groupId; })
+    .filter(function(e){ return !e.frameId && !e.groupId && !e.tableCell; })
     .forEach(function(e){ ids.push(e.id); });
   return ids;
 }
@@ -946,7 +949,39 @@ function renderItemIntoContainer(item, parentNode){
     if(fg) parentNode.appendChild(fg);
     return;
   }
+  if(item.type === 'table'){
+    tableModule.renderTable(item, parentNode, {
+      ns: ns,
+      findAny: findAny,
+      renderElInto: function(el, pg, inGroup){ renderElInto(el, pg, inGroup); },
+      onTableHit: onTableHit,
+      openTed: openTed
+    });
+    return;
+  }
   renderElInto(item, parentNode, false);
+}
+function onTableHit(e, tableEl){
+  if(S.tool!=='select')return;
+  e.stopPropagation();
+  var add=e.shiftKey||e.ctrlKey||e.metaKey;
+  if(!add&&tableEl.frameId&&getActiveFrameId()!==tableEl.frameId){ selectEl(tableEl.frameId); return; }
+  var wasMulti=(S.selIds&&S.selIds.length>1&&isSelected(tableEl.id)&&!add);
+  var preSelIds=wasMulti?S.selIds.slice():null;
+  if(!wasMulti) selectEl(tableEl.id, add);
+  var pt=svgPt(e);
+  if(e.altKey){ var ids=preSelIds?preSelIds:[tableEl.id]; var newIds=duplicateIds(ids); startMultiDrag(newIds, newIds[newIds.length-1], pt); return; }
+  if(preSelIds){ startMultiDrag(preSelIds, tableEl.id, pt); return; }
+  if(!add){
+    var bb=tableModule.getTableBBox(tableEl);
+    S.dragging=true; S.dragEl=tableEl;
+    var baseTx=0, baseTy=0;
+    if(tableEl.frameId){
+      var pf=S.frames.find(function(f){ return f.id===tableEl.frameId; });
+      if(pf){ var pab=absPos(pf); baseTx=-pab.x; baseTy=-pab.y; }
+    }
+    S.dragS={ mx: pt.x, my: pt.y, ox: bb.x, oy: bb.y, baseTx: baseTx, baseTy: baseTy, rx: tableEl.x, ry: tableEl.y };
+  }
 }
 function renderChildrenWithMasks(childIds, parentNode, ownerFrameId, ownerGroupId){
   var activeClipId = null;
@@ -1077,7 +1112,7 @@ function frameAt(ax,ay){
 }
 
 
-var ICONS={frame:'⬚',rect:'▭',ellipse:'◯',line:'╱',text:'T',image:'🖼',path:'✏',group:'⊞'};
+var ICONS={frame:'⬚',rect:'▭',ellipse:'◯',line:'╱',text:'T',table:'▦',image:'🖼',path:'✏',group:'⊞'};
 function convertRectToPath(r){
   if(!r||r.type!=='rect')return;
   var x=r.x,y=r.y,w=Math.max(1,r.w||0),h=Math.max(1,r.h||0);
@@ -1203,6 +1238,12 @@ function renderEl(el){
       renderChildrenWithMasks(getRootLooseChildIds(),elsLoose,null,null);
       return;
     }
+  }
+  if(el.type==='table'){
+    var oldT=document.getElementById('g'+el.id);if(oldT)oldT.remove();
+    var parent=el.frameId?(getFCG(el.frameId)||elsLoose):elsLoose;
+    tableModule.renderTable(el,parent,{ns:ns,findAny:findAny,renderElInto:function(ell,pg,ig){renderElInto(ell,pg,ig);},onTableHit:onTableHit,openTed:openTed});
+    return;
   }
   if(el.frameId){var fc=getFCG(el.frameId);if(fc)renderElInto(el,fc);else{el.frameId=null;renderElInto(el,elsLoose);}}
   else renderElInto(el,elsLoose);
@@ -1437,7 +1478,13 @@ function renderElInto(el,pg,inGroup){
         var preSelIds = wasMulti ? S.selIds.slice() : null;
 
         if(!wasMulti){
-          selectEl(cap.id, add);
+          // Table cell: keep table selected so selection stays visible in layer tree; dblclick will open cell editor.
+          if(cap.tableCell){
+            var tab=findAny(cap.tableCell.tableId);
+            if(tab)selectEl(tab.id,add);
+          } else {
+            selectEl(cap.id, add);
+          }
         }
 
         var pt = svgPt(e);
@@ -1456,6 +1503,11 @@ function renderElInto(el,pg,inGroup){
 
         if(!add){
           if(!canFreeDragChild(cap))return;
+          if(cap.tableCell){
+            var tab=findAny(cap.tableCell.tableId);
+            if(tab){ var abT=absPos(tab); var baseTx=0,baseTy=0; if(tab.frameId){ var pft=S.frames.find(function(f){return f.id===tab.frameId}); if(pft){ var pabT=absPos(pft); baseTx=-pabT.x; baseTy=-pabT.y; } } S.dragging=true; S.dragEl=tab; S.dragS={mx:pt.x,my:pt.y,ox:abT.x,oy:abT.y,baseTx:baseTx,baseTy:baseTy,rx:tab.x,ry:tab.y}; }
+            return;
+          }
           S.dragging=true;
           S.dragEl=cap;
           console.log('drag start', S.dragEl&&S.dragEl.type, S.dragEl&&S.dragEl.id);
@@ -1464,12 +1516,24 @@ function renderElInto(el,pg,inGroup){
         }
       });
       g.addEventListener('dblclick',function(e){
-        if(cap.type==='text'){e.stopPropagation();openTed(cap);}
+        console.log('[el dblclick]',cap.type,cap.id,'tableCell=',!!cap.tableCell,'target=',e.target&&e.target.id);
+        if(cap.type==='text'){e.stopPropagation();e.preventDefault();openTed(cap);}
         else if(cap.type==='path'||cap.type==='line'){e.stopPropagation();enterPenEditMode(cap.id);}
       });
     })(el);
   }
   if(el.type==='text'&&tedId===el.id&&ted.style.display!=='none')g.style.display='none';
+  // Table cell: transparent hit rect so whole cell area is clickable (not just text)
+  if(el.tableCell){
+    var cellHit=ns('rect');
+    cellHit.setAttribute('x',el.x);
+    cellHit.setAttribute('y',el.y);
+    cellHit.setAttribute('width',Math.max(1,el.w||0));
+    cellHit.setAttribute('height',Math.max(1,el.h||0));
+    cellHit.setAttribute('fill','transparent');
+    cellHit.setAttribute('stroke','none');
+    g.appendChild(cellHit);
+  }
   if(anchor&&anchorParent===pg)pg.insertBefore(g,anchor);else pg.appendChild(g);
 }
 
@@ -1548,6 +1612,9 @@ function delSel(){
     } else {
       var el=S.els.find(function(e){return e.id===sid});
       var elParentId=el?el.frameId:null;
+      if(el&&el.type==='table'&&el.cells){
+        for(var tr=0;tr<el.cells.length;tr++){ for(var tc=0;tc<(el.cells[tr]||[]).length;tc++){ var cid=el.cells[tr][tc]; S.els=S.els.filter(function(e){return e.id!==cid}); var cg=document.getElementById('g'+cid);if(cg)cg.remove(); } }
+      }
       if(el&&el.frameId){var pf=S.frames.find(function(f){return f.id===el.frameId});if(pf)pf.children=pf.children.filter(function(c){return c!==sid});}
       var gd=document.getElementById('grad'+sid);if(gd)gd.remove();
       S.els=S.els.filter(function(e){return e.id!==sid});
@@ -2601,6 +2668,8 @@ if(ids.length===1){
       ab=absPos(T);
       w=ted.offsetWidth/S.zoom;
       h=ted.offsetHeight/S.zoom;
+    } else if(T.type==='table'){
+      var tbb=getBBox(T); ab={x:tbb.x,y:tbb.y}; w=tbb.w; h=tbb.h;
     } else {
       ab=absPos(T); w=T.w||0; h=T.h||0;
     }
@@ -2958,6 +3027,16 @@ canvas.addEventListener('mousedown',function(e){
     S.textDraw={x:sp.x,y:sp.y,area:false};
     ghostEllipse.style.display='none'; ghost.style.display='';
     ghost.setAttribute('x',sp.x);ghost.setAttribute('y',sp.y);ghost.setAttribute('width',1);ghost.setAttribute('height',1);
+    return;
+  }
+  if(S.tool==='table'){
+    var sp=snapPt(pt);
+    var fr=frameAt(sp.x,sp.y);
+    S.tableCreatePending={sp:sp,fr:fr};
+    var tcm=document.getElementById('table-create-modal');
+    var tri=document.getElementById('table-rows-input');
+    var tci=document.getElementById('table-cols-input');
+    if(tcm&&tri&&tci){ tri.value='3'; tci.value='3'; tcm.style.display='flex'; tri.focus(); }
     return;
   }
   if(S.tool==='image')return;
@@ -4273,7 +4352,12 @@ function commitText(){
     el.h=ted.offsetHeight/S.zoom;
   }
   updateTextBounds(el);
-  renderEl(el);
+  if(el.tableCell){
+    var tab=S.els.find(function(e){return e.id===el.tableCell.tableId});
+    if(tab)renderEl(tab);
+  } else {
+    renderEl(el);
+  }
   refreshLayers();
   refreshProps();
   snapshot();
@@ -4493,15 +4577,23 @@ function alignItems(mode){
 }
 
 // ── LAYERS ──
-/** Unified root order: first id = top row in list. Uses S.rootOrder if set (after user reorder), else built from groups, frames, els. */
-function getRootListOrder(){
-  if(S.rootOrder&&S.rootOrder.length>0)return S.rootOrder.slice();
+/** Build default root order (groups, frames, els; els exclude tableCell so only table appears, not cells). */
+function buildDefaultRootOrder(){
   var rootG=S.groups.filter(function(g){return !g.frameId&&!g.groupId;});
   var rootF=S.frames.filter(function(f){return !f.frameId&&!f.groupId;});
-  var rootE=S.els.filter(function(e){return !e.frameId&&!e.groupId;});
+  var rootE=S.els.filter(function(e){return !e.frameId&&!e.groupId&&!e.tableCell;});
   return [].concat(rootG).reverse().map(function(g){return g.id;})
     .concat([].concat(rootF).reverse().map(function(f){return f.id;}))
     .concat([].concat(rootE).reverse().map(function(e){return e.id;}));
+}
+/** Unified root order: first id = top row in list. Uses S.rootOrder if set (after user reorder), else built from groups, frames, els. New root items (e.g. new table) are appended to S.rootOrder so they appear in the layer tree. */
+function getRootListOrder(){
+  var currentRoot=buildDefaultRootOrder();
+  if(!S.rootOrder||S.rootOrder.length===0)return currentRoot;
+  var set={}; S.rootOrder.forEach(function(id){set[id]=true;});
+  var missing=currentRoot.filter(function(id){return !set[id];});
+  if(missing.length>0)S.rootOrder=S.rootOrder.concat(missing);
+  return S.rootOrder.slice();
 }
 /** Apply new root order (array of ids). Preserves unified order: root items in S.groups/S.frames/S.els follow order in ids. */
 function applyRootOrder(ids){
@@ -5412,6 +5504,46 @@ function loadProject(json,fileName,opts){
 document.getElementById('save-btn').addEventListener('click',saveProject);
 document.getElementById('load-btn').addEventListener('click',function(){document.getElementById('proj-input').click();});
 document.getElementById('proj-input').addEventListener('change',function(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){loadProject(ev.target.result,file.name);};reader.readAsText(file);e.target.value='';});
+
+// ── Table create modal ──
+(function(){
+  var modal=document.getElementById('table-create-modal');
+  if(!modal)return;
+  var dialog=modal.querySelector('.table-create-dialog');
+  var ov=document.getElementById('table-create-ov');
+  var rowsInp=document.getElementById('table-rows-input');
+  var colsInp=document.getElementById('table-cols-input');
+  var okBtn=document.getElementById('table-create-ok');
+  var cancelBtn=document.getElementById('table-create-cancel');
+  function hide(){ modal.style.display='none'; S.tableCreatePending=null; }
+  function confirm(){
+    if(!S.tableCreatePending)return hide();
+    var rows=Math.max(1,Math.min(50,parseInt(rowsInp.value,10)||3));
+    var cols=Math.max(1,Math.min(20,parseInt(colsInp.value,10)||3));
+    var sp=S.tableCreatePending.sp, fr=S.tableCreatePending.fr;
+    var frAbs=fr?absPos(fr):null;
+    var tx=fr?sp.x-frAbs.x:sp.x, ty=fr?sp.y-frAbs.y:sp.y;
+    var api={uid:uid,nid:S.nid};
+    var created=tableModule.createTableData(rows,cols,tx,ty,{frameId:fr?fr.id:null,groupId:null,name:'Table '+(S.nid)},api);
+    created.cellEls.forEach(function(c){S.els.push(c);});
+    S.els.push(created.tableEl);
+    if(fr)fr.children.push(created.tableEl.id);
+    S.nid++;
+    renderEl(created.tableEl);
+    selectEl(created.tableEl.id);
+    refreshLayers();
+    snapshot();
+    toast('Table added');
+    hide();
+  }
+  modal.addEventListener('click',function(e){ if(!dialog.contains(e.target)) hide(); });
+  if(ov)ov.addEventListener('click',hide);
+  if(cancelBtn)cancelBtn.addEventListener('click',hide);
+  if(okBtn)okBtn.addEventListener('click',confirm);
+  if(rowsInp&&colsInp)rowsInp.addEventListener('keydown',function(e){if(e.key==='Enter')colsInp.focus();});
+  colsInp&&colsInp.addEventListener('keydown',function(e){if(e.key==='Enter')confirm();if(e.key==='Escape')hide();});
+  document.addEventListener('keydown',function tableModalEsc(e){if(e.key!=='Escape')return;if(!modal||modal.style.display!=='flex')return;hide();});
+})();
 
 // ── AUTO-SAVE & PROJECTS ──
 var _autoSaveTimer=null;

@@ -1,6 +1,6 @@
 // DesignOS – shared constants (no deps)
 
-export const TOOLS = ['select', 'frame', 'rect', 'ellipse', 'line', 'text', 'image', 'pen', 'hand'];
+export const TOOLS = ['select', 'frame', 'rect', 'ellipse', 'line', 'text', 'table', 'image', 'pen', 'hand'];
 
 export const PRESETS = [
   { name: 'Desktop', w: 1440, h: 900 },
