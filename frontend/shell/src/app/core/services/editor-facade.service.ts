@@ -16,6 +16,20 @@ export interface EditorElementProperties {
   height: number;
 }
 
+/** Legacy document format: roundtrip-safe for getDocument/loadDocument. */
+export interface EditorDocument {
+  version: number;
+  projId?: string | null;
+  projName?: string;
+  nid: number;
+  frames: unknown[];
+  els: unknown[];
+  groups: unknown[];
+  components?: unknown[];
+  rootOrder?: string[];
+  view?: { zoom: number; px: number; py: number };
+}
+
 export interface EditorBridgeApi {
   init(canvas: HTMLElement | HTMLCanvasElement | null): void;
   addRectangle(): void;
@@ -26,6 +40,8 @@ export interface EditorBridgeApi {
   getElementProperties?(id: string): EditorElementProperties | null;
   updatePosition?(id: string, x: number, y: number): void;
   updateSize?(id: string, width: number, height: number): void;
+  getDocument?(): EditorDocument | null;
+  loadDocument?(doc: EditorDocument | string): void;
   on?(eventName: string, callback: (payload: EditorSelection) => void): void;
 }
 
@@ -203,6 +219,31 @@ export class EditorFacadeService {
       this.selectionSubject.next(this.getSelection());
     } catch (e) {
       console.warn('[EditorFacade] updateSize failed:', e);
+    }
+  }
+
+  /** Get current document as JSON-serializable object (legacy format). */
+  getDocument(): EditorDocument | null {
+    if (!this.isBridgeAvailable()) return null;
+    try {
+      return this.bridge!.getDocument?.() ?? null;
+    } catch (e) {
+      console.warn('[EditorFacade] getDocument failed:', e);
+      return null;
+    }
+  }
+
+  /** Load document; canvas redraws, selection state is cleared then updated. */
+  loadDocument(doc: EditorDocument | string): void {
+    if (!this.isBridgeAvailable()) {
+      console.warn(BRIDGE_UNAVAILABLE_MSG, 'loadDocument() skipped.');
+      return;
+    }
+    try {
+      this.bridge!.loadDocument?.(doc);
+      this.selectionSubject.next(this.getSelection());
+    } catch (e) {
+      console.warn('[EditorFacade] loadDocument failed:', e);
     }
   }
 }

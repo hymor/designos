@@ -5962,6 +5962,29 @@ function updateItemSize(id, w, h) {
   if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
 }
 
+// Integration: document save/load for Angular (same format as loadProject)
+function getDocument() {
+  var payload = {
+    version: 8,
+    projId: S.projId || null,
+    projName: S.projName || 'Untitled',
+    nid: S.nid,
+    frames: S.frames,
+    els: S.els,
+    groups: S.groups,
+    components: S.components || [],
+    rootOrder: (S.rootOrder && S.rootOrder.length) ? S.rootOrder : getRootListOrder(),
+    view: { zoom: S.zoom, px: S.px, py: S.py }
+  };
+  return JSON.parse(JSON.stringify(payload));
+}
+function loadDocument(doc) {
+  if (doc == null) return;
+  var json = typeof doc === 'string' ? doc : JSON.stringify(doc);
+  loadProject(json, '', { silent: true });
+  if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
+}
+
 // Integration: expose API for EditorEngine (Angular -> facade -> bridge -> engine)
 if (typeof window !== 'undefined') {
   window.__designosAPI = {
@@ -5973,6 +5996,8 @@ if (typeof window !== 'undefined') {
     findAny: findAny,
     runEditorInit: runEditorInit,
     updateItemPosition: updateItemPosition,
-    updateItemSize: updateItemSize
+    updateItemSize: updateItemSize,
+    getDocument: getDocument,
+    loadDocument: loadDocument
   };
 }
