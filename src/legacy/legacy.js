@@ -1332,52 +1332,137 @@ function renderElInto(el,pg,inGroup){
   if(!inGroup){
     (function(cap){
       g.addEventListener('mousedown',function(e){
-  if(S.tool!=='select')return;
-  if(S.penEditId)return;
-  e.stopPropagation();
-  console.log('down', cap.type, cap.id);
+        if(S.tool!=='select')return;
+        if(S.penEditId)return;
+        e.stopPropagation();
+        console.log('down', cap.type, cap.id);
 
-  var add = e.shiftKey||e.ctrlKey||e.metaKey;
+        var add = e.shiftKey||e.ctrlKey||e.metaKey;
 
-  // Figma-style surface selection: first click on child selects parent frame
-  if(!add && cap.frameId && getActiveFrameId()!==cap.frameId){
-    selectEl(cap.frameId);return;
-  }
+        // If element is inside a mask group, canvas click should usually act on the whole mask group.
+        // BUT: if в дереве выбран любой дочерний элемент маски (маска или контент) — двигаем именно его.
+        var parentMaskGroup = null;
+        if(cap.groupId){
+          var pg=S.groups.find(function(g){return g.id===cap.groupId;});
+          if(pg&&pg.isMaskGroup)parentMaskGroup=pg;
+        }
+        var childSoloSelected = !!(S.selIds && S.selIds.length===1 && S.selId===cap.id);
+        var selectedChildOfMask = !!(parentMaskGroup && S.selIds && S.selIds.length===1 && parentMaskGroup.children && parentMaskGroup.children.indexOf(S.selId)>=0);
 
-  // ВАЖНО: снять "снапшот" выделения ДО selectEl, иначе оно сбросится
-  var wasMulti = (S.selIds && S.selIds.length>1 && isSelected(cap.id) && !add);
-  var preSelIds = wasMulti ? S.selIds.slice() : null;
+        if(selectedChildOfMask){
+          var toDrag=findAny(S.selId);
+          if(toDrag){
+            var ptC=svgPt(e);
+            if(e.altKey){
+              var newIdsC=duplicateIds([toDrag.id]);
+              startMultiDrag(newIdsC,newIdsC[0],ptC);
+              return;
+            }
+            if(!add){
+              if(toDrag.type==='group'){
+                if(!canFreeDragGroup(toDrag))return;
+                var cbC=getGroupBBox(toDrag);
+                S.dragging=true;
+                S.dragEl=toDrag;
+                var baseTxC=0,baseTyC=0;
+                if(toDrag.frameId){
+                  var pfC=S.frames.find(function(f){return f.id===toDrag.frameId;});
+                  if(pfC){var pabC=absPos(pfC);baseTxC=-pabC.x;baseTyC=-pabC.y;}
+                }
+                S.dragS={mx:ptC.x,my:ptC.y,ox:cbC.x,oy:cbC.y,baseTx:baseTxC,baseTy:baseTyC};
+              } else {
+                if(!canFreeDragChild(toDrag))return;
+                S.dragging=true;
+                S.dragEl=toDrag;
+                var abC=toDrag.type==='path'?getBBox(toDrag):absPos(toDrag);
+                S.dragS={mx:ptC.x,my:ptC.y,ox:abC.x,oy:abC.y,rx:toDrag.x,ry:toDrag.y};
+              }
+            }
+          }
+          return;
+        }
 
-  // как в Figma: клик по одному из уже выделенных НЕ должен сбрасывать мультивыделение
-  if(!wasMulti){
-    selectEl(cap.id, add);
-  }
+        if(parentMaskGroup && !childSoloSelected){
+          var grp=parentMaskGroup;
 
-  var pt = svgPt(e);
+          if(!add && grp.frameId && getActiveFrameId()!==grp.frameId){
+            selectEl(grp.frameId);return;
+          }
 
-  // ALT = duplicate (single or multi)
-  if(e.altKey){
-    var ids = preSelIds ? preSelIds : [cap.id];
-    var newIds = duplicateIds(ids);
-    startMultiDrag(newIds, newIds[newIds.length-1], pt);
-    return;
-  }
+          var wasMultiGrp=(S.selIds && S.selIds.length>1 && isSelected(grp.id) && !add);
+          var preSelIdsGrp=wasMultiGrp?S.selIds.slice():null;
 
-  // multi-drag if clicked item is part of multi selection
-  if(preSelIds){
-    startMultiDrag(preSelIds, cap.id, pt);
-    return;
-  }
+          if(!wasMultiGrp){
+            selectEl(grp.id,add);
+          }
 
-  if(!add){
-    if(!canFreeDragChild(cap))return;
-    S.dragging=true;
-    S.dragEl=cap;
-    console.log('drag start', S.dragEl&&S.dragEl.type, S.dragEl&&S.dragEl.id);
-    var ab=cap.type==='path'?getBBox(cap):absPos(cap);
-    S.dragS={mx:pt.x,my:pt.y,ox:ab.x,oy:ab.y,rx:cap.x,ry:cap.y};
-  }
-});
+          var ptGrp=svgPt(e);
+
+          if(e.altKey){
+            var idsGrp=preSelIdsGrp?preSelIdsGrp:[grp.id];
+            var newIdsGrp=duplicateIds(idsGrp);
+            startMultiDrag(newIdsGrp,newIdsGrp[newIdsGrp.length-1],ptGrp);
+            return;
+          }
+
+          if(preSelIdsGrp){
+            startMultiDrag(preSelIdsGrp,grp.id,ptGrp);
+            return;
+          }
+
+          if(!add){
+            if(!canFreeDragGroup(grp))return;
+            var cb=getGroupBBox(grp);
+            S.dragging=true;
+            S.dragEl=grp;
+            var baseTx=0,baseTy=0;
+            if(grp.frameId){
+              var pf=S.frames.find(function(f){return f.id===grp.frameId;});
+              if(pf){
+                var pab=absPos(pf);
+                baseTx=-pab.x;baseTy=-pab.y;
+              }
+            }
+            S.dragS={mx:ptGrp.x,my:ptGrp.y,ox:cb.x,oy:cb.y,baseTx:baseTx,baseTy:baseTy};
+          }
+          return;
+        }
+
+        // Default element behavior (non‑mask groups)
+        if(!add && cap.frameId && getActiveFrameId()!==cap.frameId){
+          selectEl(cap.frameId);return;
+        }
+
+        var wasMulti = (S.selIds && S.selIds.length>1 && isSelected(cap.id) && !add);
+        var preSelIds = wasMulti ? S.selIds.slice() : null;
+
+        if(!wasMulti){
+          selectEl(cap.id, add);
+        }
+
+        var pt = svgPt(e);
+
+        if(e.altKey){
+          var ids = preSelIds ? preSelIds : [cap.id];
+          var newIds = duplicateIds(ids);
+          startMultiDrag(newIds, newIds[newIds.length-1], pt);
+          return;
+        }
+
+        if(preSelIds){
+          startMultiDrag(preSelIds, cap.id, pt);
+          return;
+        }
+
+        if(!add){
+          if(!canFreeDragChild(cap))return;
+          S.dragging=true;
+          S.dragEl=cap;
+          console.log('drag start', S.dragEl&&S.dragEl.type, S.dragEl&&S.dragEl.id);
+          var ab=cap.type==='path'?getBBox(cap):absPos(cap);
+          S.dragS={mx:pt.x,my:pt.y,ox:ab.x,oy:ab.y,rx:cap.x,ry:cap.y};
+        }
+      });
       g.addEventListener('dblclick',function(e){
         if(cap.type==='text'){e.stopPropagation();openTed(cap);}
         else if(cap.type==='path'||cap.type==='line'){e.stopPropagation();enterPenEditMode(cap.id);}
