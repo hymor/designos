@@ -1011,7 +1011,7 @@ function _buildFrameSVG(fr){
   fg.appendChild(lblG);
   var bg=ns('rect');bg.setAttribute('x',0);bg.setAttribute('y',0);bg.setAttribute('width',fr.w);bg.setAttribute('height',fr.h);
   bg.setAttribute('fill',fr.fill);bg.setAttribute('rx',fr.rx||0);
-  bg.setAttribute('stroke',strokeColor);bg.setAttribute('stroke-width',1.5/S.zoom);
+  bg.setAttribute('stroke','none');
   fg.appendChild(bg);
   var fc=ns('g');fc.id='fc'+fr.id;fc.setAttribute('clip-path','url(#clip'+fr.id+')');
   fg.appendChild(fc);
