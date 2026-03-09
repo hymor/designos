@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, type Observable } from 'rxjs';
+import { bootstrapLegacyEditor } from '@designos/bootstrap-legacy-editor';
 
 export interface EditorSelection {
   ids: string[];
@@ -28,12 +29,18 @@ export interface EditorBridgeApi {
 
 declare global {
   interface Window {
+    /** Optional debug fallback when bridge is not set via init(). */
     editorBridge?: EditorBridgeApi;
+    /** Optional debug fallback; primary integration is direct import of bootstrapLegacyEditor. */
+    bootstrapLegacyEditor?: (
+      canvas: HTMLCanvasElement | HTMLElement | null,
+      options?: { exposeOnWindow?: boolean }
+    ) => EditorBridgeApi;
   }
 }
 
 const emptySelection: EditorSelection = { ids: [], primary: null };
-const BRIDGE_UNAVAILABLE_MSG = '[EditorFacade] window.editorBridge is not available.';
+const BRIDGE_UNAVAILABLE_MSG = '[EditorFacade] Editor bridge is not available.';
 
 @Injectable({
   providedIn: 'root',
@@ -42,27 +49,54 @@ export class EditorFacadeService {
   private readonly selectionSubject = new BehaviorSubject<EditorSelection>(emptySelection);
   readonly selection$: Observable<EditorSelection> = this.selectionSubject.asObservable();
 
+  /** Bridge created by init() via bootstrapLegacyEditor(canvas); primary source. */
+  private bridgeInstance: EditorBridgeApi | null = null;
+
+  /** Bridge: instance first, then window.editorBridge as optional debug fallback. */
   private get bridge(): EditorBridgeApi | undefined {
+    if (this.bridgeInstance != null) return this.bridgeInstance;
     return typeof window !== 'undefined' ? window.editorBridge : undefined;
   }
 
-  /** Returns true if window.editorBridge is available and callable. */
+  /** Store the bridge (e.g. for tests). init() creates bridge via bootstrapLegacyEditor when needed. */
+  setBridge(bridge: EditorBridgeApi | null): void {
+    this.bridgeInstance = bridge;
+  }
+
+  /** Returns true if a bridge (instance or window fallback) is available and callable. */
   isBridgeAvailable(): boolean {
     const b = this.bridge;
     return b != null && typeof b.init === 'function';
   }
 
-  /** Safe init: only runs if bridge is available; otherwise logs and no-op. */
+  /**
+   * Init editor on canvas. Creates bridge via bootstrapLegacyEditor(canvas) on first call;
+   * reuses existing bridge on subsequent calls.
+   */
   init(canvas: HTMLCanvasElement | HTMLElement | null): void {
-    if (!this.isBridgeAvailable()) {
-      console.warn(BRIDGE_UNAVAILABLE_MSG, 'init(canvas) skipped.');
+    if (this.bridgeInstance != null) {
+      console.log('[EditorFacade] reusing existing bridge');
+      this._initBridge(canvas);
       return;
     }
+    console.log('[EditorFacade] bootstrapping editor...');
     try {
-      this.bridge!.init(canvas ?? null);
+      const bridge = bootstrapLegacyEditor(canvas ?? null, { exposeOnWindow: false });
+      this.bridgeInstance = bridge;
+      console.log('[EditorFacade] bridge created:', bridge != null ? 'ok' : 'null');
+      this._initBridge(canvas);
+    } catch (e) {
+      console.warn('[EditorFacade] bootstrap failed:', e);
+    }
+  }
+
+  private _initBridge(canvas: HTMLCanvasElement | HTMLElement | null): void {
+    if (!this.bridge) return;
+    try {
+      this.bridge.init(canvas ?? null);
       this.selectionSubject.next(this.getSelection());
       const onSelectionChanged = (payload: EditorSelection) => this.selectionSubject.next(payload);
-      this.bridge!.on?.('selectionChanged', onSelectionChanged);
+      this.bridge.on?.('selectionChanged', onSelectionChanged);
     } catch (e) {
       console.warn('[EditorFacade] init failed:', e);
     }
@@ -94,7 +128,7 @@ export class EditorFacadeService {
     }
   }
 
-  /** Safe getSelection: returns empty selection and warns if bridge unavailable. */
+  /** Safe getSelection: returns empty selection if bridge unavailable. */
   getSelection(): EditorSelection {
     if (!this.isBridgeAvailable()) {
       return emptySelection;

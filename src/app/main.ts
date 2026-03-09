@@ -1,13 +1,9 @@
-// DesignOS – entry point
-// Step 1: legacy app runs as-is; extract modules here incrementally.
-import '../engine/legacy/legacy.js';
-import { editorBridge } from './editor-bridge.js';
+// DesignOS – entry point (legacy runtime)
+// Delegates to bootstrap module so the same logic can be used by Angular or other hosts.
+import { bootstrapLegacyEditor } from './bootstrap-legacy-editor.js';
 
-// Bridge for Angular: init on editor canvas (if present), always expose on window
-const canvasEl = typeof document !== 'undefined' ? document.getElementById('canvas') : null;
-if (canvasEl) {
-  editorBridge.init(canvasEl);
-}
-if (typeof window !== 'undefined') {
-  (window as unknown as { editorBridge: typeof editorBridge }).editorBridge = editorBridge;
-}
+const canvasEl =
+  typeof document !== 'undefined'
+    ? (document.getElementById('canvas') as HTMLCanvasElement | HTMLElement | null)
+    : null;
+bootstrapLegacyEditor(canvasEl, { exposeOnWindow: true });

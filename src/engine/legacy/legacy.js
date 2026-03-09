@@ -682,7 +682,7 @@ function setTool(tool){
   if(tool!=='eyedropper'&&prev==='eyedropper')edBadgeHide();
 }
 TOOLS.forEach(function(t){var b=document.getElementById('t-'+t);if(b)b.addEventListener('click',function(){setTool(t)});});
-document.getElementById('t-eyedropper').addEventListener('click',function(){
+var tEyedropper=document.getElementById('t-eyedropper');if(tEyedropper)tEyedropper.addEventListener('click',function(){
   if(S.tool==='eyedropper')setTool('select');else activateEyedropper();
 });
 
@@ -796,15 +796,15 @@ function nudgeSel(dx,dy){
 }
 
 // ── ZOOM / PAN ──
-canvas.addEventListener('wheel',function(e){
+if(canvas)canvas.addEventListener('wheel',function(e){
   e.preventDefault();
   var r=canvas.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top;
   var f=e.deltaY<0?1.1:0.9,nz=clamp(S.zoom*f,.05,20);
   S.px=cx-(cx-S.px)*(nz/S.zoom); S.py=cy-(cy-S.py)*(nz/S.zoom); S.zoom=nz;
   applyTr(); drawSel(); S.frames.filter(function(f){return !f.frameId;}).forEach(function(f){renderFrame(f);});
 },{passive:false});
-document.getElementById('z-in').addEventListener('click',function(){adjZ(1.2)});
-document.getElementById('z-out').addEventListener('click',function(){adjZ(.8)});
+var zIn=document.getElementById('z-in');if(zIn)zIn.addEventListener('click',function(){adjZ(1.2)});
+var zOut=document.getElementById('z-out');if(zOut)zOut.addEventListener('click',function(){adjZ(.8)});
 function adjZ(f){
   var r=canvas.getBoundingClientRect(),cx=r.width/2,cy=r.height/2,nz=clamp(S.zoom*f,.05,20);
   S.px=cx-(cx-S.px)*(nz/S.zoom); S.py=cy-(cy-S.py)*(nz/S.zoom); S.zoom=nz;
@@ -2970,7 +2970,7 @@ function getSelBBox(){
 }
 
 // ── CANVAS EVENTS ──
-canvas.addEventListener('mousedown',function(e){
+if(canvas)canvas.addEventListener('mousedown',function(e){
   if(e.target===ted)return; commitText();
   if(S.tool==='eyedropper'){
     var color=edSampleAt(e.clientX,e.clientY);
@@ -3065,7 +3065,7 @@ canvas.addEventListener('mousedown',function(e){
   }
 });
 
-canvas.addEventListener('dblclick',function(e){
+if(canvas)canvas.addEventListener('dblclick',function(e){
   if(S.penEditId){
     exitPenEditMode();
     e.preventDefault();
@@ -3073,7 +3073,7 @@ canvas.addEventListener('dblclick',function(e){
   }
 });
 
-canvas.addEventListener('mousemove',function(e){
+if(canvas)canvas.addEventListener('mousemove',function(e){
   if(S.tool==='eyedropper'){edBadgeUpdate(e);return;}
   if(S.lineEditEndpoint!==undefined&&S.lineEditEl){
     var pt=svgPt(e),sp=snapPt(pt);
@@ -3550,7 +3550,7 @@ canvas.addEventListener('mousemove',function(e){
   }
 });
 
-canvas.addEventListener('mouseup',function(e){
+if(canvas)canvas.addEventListener('mouseup',function(e){
   if(S.textDraw){
     var pt=svgPt(e),sp=snapPt(pt),td=S.textDraw;
     var el;
@@ -3837,7 +3837,7 @@ document.addEventListener('mouseup',function(){
 });
 
 // ── IMAGE ──
-document.getElementById('img-input').addEventListener('change',function(e){
+var imgInput=document.getElementById('img-input');if(imgInput)imgInput.addEventListener('change',function(e){
   var file=e.target.files[0];if(!file)return;
   var reader=new FileReader();reader.onload=function(ev){
     var r=canvas.getBoundingClientRect();var cx=(r.width/2-S.px)/S.zoom,cy=(r.height/2-S.py)/S.zoom;
@@ -3849,8 +3849,8 @@ document.getElementById('img-input').addEventListener('change',function(e){
     };img.src=ev.target.result;
   };reader.readAsDataURL(file);e.target.value='';
 });
-canvas.addEventListener('dragover',function(e){e.preventDefault();});
-canvas.addEventListener('drop',function(e){
+if(canvas)canvas.addEventListener('dragover',function(e){e.preventDefault();});
+if(canvas)canvas.addEventListener('drop',function(e){
   e.preventDefault();var file=e.dataTransfer.files[0];if(!file||!file.type.startsWith('image/'))return;
   var reader=new FileReader();reader.onload=function(ev){
     var pt=svgPt(e);var img=new Image();img.onload=function(){
@@ -4307,13 +4307,13 @@ function openTed(el){
     ted.setSelectionRange(ted.value.length,ted.value.length);
   });
 }
-ted.addEventListener('input',function(){
+if(ted)ted.addEventListener('input',function(){
   if(!tedId)return;
   var el=S.els.find(function(e){return e.id===tedId});
   if(el)el.text=ted.value;
   resizeTed();
 });
-ted.addEventListener('keydown',function(e){if(e.key==='Escape'){e.preventDefault();commitText();}else if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();commitText();}});
+if(ted)ted.addEventListener('keydown',function(e){if(e.key==='Escape'){e.preventDefault();commitText();}else if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();commitText();}});
 function updateTextBounds(el){
   if(!el.text)return;
   var m=measureText(el);
@@ -4462,9 +4462,9 @@ function pasteItemsAtCenter(){
   S.selIds=nids;S.selId=nids[nids.length-1];drawSel();refreshLayers();refreshProps();snapshot();
   toast('Pasted '+nids.length+' item'+(nids.length>1?'s':''));
 }
-document.getElementById('copy-btn').addEventListener('click',copyItems);
-document.getElementById('cut-btn').addEventListener('click',cutItems);
-document.getElementById('paste-btn').addEventListener('click',pasteItems);
+var copyBtn=document.getElementById('copy-btn');if(copyBtn)copyBtn.addEventListener('click',copyItems);
+var cutBtn=document.getElementById('cut-btn');if(cutBtn)cutBtn.addEventListener('click',cutItems);
+var pasteBtn=document.getElementById('paste-btn');if(pasteBtn)pasteBtn.addEventListener('click',pasteItems);
 
 // ── OBJECT CONTEXT MENU (dropdown) ──
 var objCtxMenuClose=null;
@@ -4539,7 +4539,7 @@ function showArtboardContextMenu(clientX,clientY){
   };
   setTimeout(function(){document.addEventListener('click',closeHandler);document.addEventListener('contextmenu',closeHandler);},0);
 }
-canvas.addEventListener('contextmenu',function(e){
+if(canvas)canvas.addEventListener('contextmenu',function(e){
   if(e.target===ted)return;
   var items=getSelItems();
   if(items.length){e.preventDefault();showObjContextMenu(e.clientX,e.clientY);}
@@ -5509,9 +5509,9 @@ function loadProject(json,fileName,opts){
     setSaveStatus('saved');
   }catch(err){console.error(err);if(!opts.silent)toast('Failed to load');}
 }
-document.getElementById('save-btn').addEventListener('click',saveProject);
-document.getElementById('load-btn').addEventListener('click',function(){document.getElementById('proj-input').click();});
-document.getElementById('proj-input').addEventListener('change',function(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){loadProject(ev.target.result,file.name);};reader.readAsText(file);e.target.value='';});
+var saveBtn=document.getElementById('save-btn');if(saveBtn)saveBtn.addEventListener('click',saveProject);
+var loadBtn=document.getElementById('load-btn');if(loadBtn)loadBtn.addEventListener('click',function(){var projIn=document.getElementById('proj-input');if(projIn)projIn.click();});
+var projInput=document.getElementById('proj-input');if(projInput)projInput.addEventListener('change',function(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){loadProject(ev.target.result,file.name);};reader.readAsText(file);e.target.value='';});
 
 // ── Table create modal ──
 (function(){
@@ -5771,7 +5771,7 @@ function updateExpBtn(){
   else{btn.style.opacity='0.35';btn.style.pointerEvents='none';btn.title='Select objects to export';}
 }
 
-document.getElementById('exp-btn').addEventListener('click',function(){
+var expBtn=document.getElementById('exp-btn');if(expBtn)expBtn.addEventListener('click',function(){
   var ids=S.selIds.length?S.selIds:(S.selId?[S.selId]:[]);
   if(!ids.length){toast('Select objects to export');return;}
   var items=ids.map(findAny).filter(Boolean);
@@ -5887,8 +5887,9 @@ function edBadgeHide(){
   if(badge)badge.style.display='none';
 }
 
-// ── INIT ──
+// ── INIT ── (run only when canvas is available; e.g. after bootstrapLegacyEditor(canvas) sets it)
 (function(){
+  if(!canvas)return;
   var r=canvas.getBoundingClientRect();S.px=r.width/2-300;S.py=r.height/2-200;
   applyTr();drawSnapGrid();refreshLayers();refreshProps();refreshCompPanel();
   // Restore last session from localStorage

@@ -4,10 +4,17 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./out-tsc/app",
-    "types": []
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "@designos/bootstrap-legacy-editor": ["../../src/app/bootstrap-legacy-editor"]
+    },
+    "allowJs": true
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "../../src/**/*.ts",
+    "../../src/**/*.js"
   ],
   "exclude": [
     "src/**/*.spec.ts"
