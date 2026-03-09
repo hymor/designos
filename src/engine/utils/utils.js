@@ -19,7 +19,9 @@ export function deep(o) {
 }
 
 export function svgPt(e) {
-  var r = dom.canvas.getBoundingClientRect();
+  var canvas = dom.canvas;
+  if (!canvas) return { x: 0, y: 0 };
+  var r = canvas.getBoundingClientRect();
   return {
     x: (e.clientX - r.left - S.px) / S.zoom,
     y: (e.clientY - r.top - S.py) / S.zoom

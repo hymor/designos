@@ -4,9 +4,10 @@ import { S, dom } from '../core/state.js';
 
 export function createZoomPan(deps) {
   const { applyTr, drawSel, renderFrame, clamp } = deps;
-  const { canvas } = dom;
 
   function adjZ(f) {
+    const canvas = dom.canvas;
+    if (!canvas) return;
     const r = canvas.getBoundingClientRect();
     const cx = r.width / 2;
     const cy = r.height / 2;
@@ -23,7 +24,8 @@ export function createZoomPan(deps) {
     });
   }
 
-  canvas.addEventListener('wheel', function (e) {
+  const canvas = dom.canvas;
+  if (canvas) canvas.addEventListener('wheel', function (e) {
     e.preventDefault();
     const r = canvas.getBoundingClientRect();
     const cx = e.clientX - r.left;

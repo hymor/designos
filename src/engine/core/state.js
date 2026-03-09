@@ -61,7 +61,7 @@ export const S = {
   activeTabId: null     // id of currently active tab
 };
 
-function getDom() {
+function getDomDefault() {
   return {
     canvas: document.getElementById('canvas'),
     defsEl: document.getElementById('defs'),
@@ -82,4 +82,20 @@ function getDom() {
   };
 }
 
-export const dom = getDom();
+let _hostContext = null;
+
+/** Set host context (e.g. from Angular). When set, dom.* returns these refs instead of document.getElementById. */
+export function setHostContext(ctx) {
+  _hostContext = ctx;
+}
+
+function getDom() {
+  return _hostContext || getDomDefault();
+}
+
+/** Live refs: use getDom() so host context from setHostContext() is used when set. */
+export const dom = new Proxy({}, {
+  get(_, prop) {
+    return getDom()[prop];
+  }
+});

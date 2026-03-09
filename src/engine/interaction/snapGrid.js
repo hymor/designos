@@ -4,9 +4,11 @@ import { S, dom } from '../core/state.js';
 
 export function createSnapGrid(deps) {
   const { toast } = deps;
-  const { canvas, snapCvs } = dom;
 
   function drawSnapGrid() {
+    const canvas = dom.canvas;
+    const snapCvs = dom.snapCvs;
+    if (!canvas || !snapCvs) return;
     const r = canvas.getBoundingClientRect();
     snapCvs.width = r.width;
     snapCvs.height = r.height;
