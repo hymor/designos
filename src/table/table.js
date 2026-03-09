@@ -37,6 +37,9 @@ export function createTableData(rows, cols, x, y, opts, api) {
     rows, cols, cellW, cellH,
     cells: [],
     borders,
+    fill: opts.fill ?? 'none',
+    stroke: opts.stroke ?? (borders.color || '#999'),
+    strokeWidth: opts.strokeWidth ?? (borders.width != null ? borders.width : 1),
     frameId,
     groupId,
     name,
@@ -100,6 +103,22 @@ export function renderTable(tableEl, parentNode, api) {
   const w = tableEl.w ?? tableEl.cols * cellW;
   const h = tableEl.h ?? tableEl.rows * cellH;
   const borders = tableEl.borders || DEFAULT_BORDERS;
+  const tableFill = tableEl.fill != null ? tableEl.fill : 'none';
+  const tableStroke = tableEl.stroke != null ? tableEl.stroke : (borders.color || '#999');
+  const tableStrokeWidth = Math.max(0, tableEl.strokeWidth != null ? tableEl.strokeWidth : (borders.width != null ? borders.width : 1));
+
+  // Background (заливка)
+  if (tableFill && tableFill !== 'none') {
+    const bg = ns('rect');
+    bg.setAttribute('x', 0);
+    bg.setAttribute('y', 0);
+    bg.setAttribute('width', w);
+    bg.setAttribute('height', h);
+    bg.setAttribute('fill', tableFill);
+    bg.setAttribute('stroke', 'none');
+    bg.style.pointerEvents = 'none';
+    g.appendChild(bg);
+  }
 
   // Hit rect with pointer-events: none so clicks pass through to cells (dblclick to edit).
   // Table drag is started from group mousedown when target is not a cell (see below).
@@ -115,26 +134,30 @@ export function renderTable(tableEl, parentNode, api) {
     g.appendChild(hit);
   }
 
-  if (borders.show && borders.color && borders.width != null) {
-    const stroke = borders.color;
-    const sw = borders.width;
+  // Outer stroke (обводка)
+  if (tableStroke && tableStroke !== 'none' && tableStrokeWidth > 0) {
     const outer = ns('rect');
     outer.setAttribute('x', 0);
     outer.setAttribute('y', 0);
     outer.setAttribute('width', w);
     outer.setAttribute('height', h);
     outer.setAttribute('fill', 'none');
-    outer.setAttribute('stroke', stroke);
-    outer.setAttribute('stroke-width', sw);
+    outer.setAttribute('stroke', tableStroke);
+    outer.setAttribute('stroke-width', tableStrokeWidth);
     outer.style.pointerEvents = 'none';
     g.appendChild(outer);
+  }
+
+  if (borders.show && borders.color && borders.width != null) {
+    const gridStroke = borders.color;
+    const sw = borders.width;
     for (let i = 1; i < tableEl.cols; i++) {
       const line = ns('line');
       line.setAttribute('x1', i * cellW);
       line.setAttribute('y1', 0);
       line.setAttribute('x2', i * cellW);
       line.setAttribute('y2', h);
-      line.setAttribute('stroke', stroke);
+      line.setAttribute('stroke', gridStroke);
       line.setAttribute('stroke-width', sw);
       line.style.pointerEvents = 'none';
       g.appendChild(line);
@@ -145,7 +168,7 @@ export function renderTable(tableEl, parentNode, api) {
       line.setAttribute('y1', j * cellH);
       line.setAttribute('x2', w);
       line.setAttribute('y2', j * cellH);
-      line.setAttribute('stroke', stroke);
+      line.setAttribute('stroke', gridStroke);
       line.setAttribute('stroke-width', sw);
       line.style.pointerEvents = 'none';
       g.appendChild(line);

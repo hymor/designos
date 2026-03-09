@@ -4978,7 +4978,7 @@ function refreshProps(){
   var el=S.els.find(function(e){return e.id===S.selId});
   var fr=S.frames.find(function(f){return f.id===S.selId});
   var T=el||fr;if(!T){propsDiv.innerHTML='<div class="no-sel">...</div>';return;}
-  var isF=!!fr,isTxt=T.type==='text',isLine=T.type==='line',isImg=T.type==='image',isRect=T.type==='rect',isEllipse=T.type==='ellipse';
+  var isF=!!fr,isTxt=T.type==='text',isLine=T.type==='line',isImg=T.type==='image',isRect=T.type==='rect',isEllipse=T.type==='ellipse',isTable=T.type==='table';
   var isMaskLayer = !!T.isMask;
   var h='';
   if(isMaskLayer){
@@ -5091,14 +5091,14 @@ function refreshProps(){
   h+='</div>';
   if(!isImg){
     var fm=T.fillMode||'solid';
-    h+='<div class="ps"><div class="ps-t">'+(isF?'Background':'Fill')+'</div>';
-    if(!isF&&!isLine){
+    h+='<div class="ps"><div class="ps-t">'+(isF?'Background':isTable?'Background':'Fill')+'</div>';
+    if(!isF&&!isLine&&!isTable){
       h+='<div class="fill-mode-row">';
       h+='<button class="fill-mode-btn'+(fm==='solid'?' on':'')+'" data-mode="solid">Solid</button>';
       h+='<button class="fill-mode-btn'+(fm==='linear'?' on':'')+'" data-mode="linear">Linear</button>';
       h+='<button class="fill-mode-btn'+(fm==='radial'?' on':'')+'" data-mode="radial">Radial</button></div>';
     }
-    if(fm==='solid'||isF||isLine){
+    if(fm==='solid'||isF||isLine||isTable){
       var hasFill=T.fill&&T.fill!=='none';
       var fillVis=T.fillVisible!==false;
       var fbg=T.fill==='none'?'transparent':T.fill;
@@ -5132,7 +5132,7 @@ function refreshProps(){
     h+='</div>';
   }
   if(isImg){h+='<div class="ps"><div class="ps-t">Image</div><div class="img-drop" id="img-rd">Click or drop to replace<input type="file" id="img-ri" accept="image/*"/></div></div>';}
-  if(!isF&&!isTxt&&!isImg){
+  if((!isF&&!isTxt&&!isImg)||isTable){
     var hasStroke=T.stroke&&T.stroke!=='none'&&(T.strokeWidth||0)>0;
     var sbg=T.stroke==='none'?'transparent':T.stroke;
     var salign=T.strokeAlign||'center';
