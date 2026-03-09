@@ -1584,8 +1584,9 @@ function selectEl(id,additive){
   else{var i=S.selIds.indexOf(id);if(i<0)S.selIds.push(id);else S.selIds.splice(i,1);}
   S.selId=S.selIds[S.selIds.length-1]||null;
   drawSel(); refreshProps(); refreshLayers();
+  if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
 }
-function clearSel(){S.selId=null;S.selIds=[];S.swapSrc=null;selOv.innerHTML='';refreshProps();refreshLayers();updateExpBtn();}
+function clearSel(){S.selId=null;S.selIds=[];S.swapSrc=null;selOv.innerHTML='';refreshProps();refreshLayers();updateExpBtn();if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();}
 function delSel(){
   var ids=S.selIds.length?S.selIds.slice():(S.selId?[S.selId]:[]);
   function deleteFrame(fid){
@@ -5913,3 +5914,15 @@ window.hideRecent = hideRecent;
 window.newProject = newProject;
 window.renameProject = renameProject;
 window.activateEyedropper = activateEyedropper;
+
+// Integration: expose API for EditorEngine (Angular -> facade -> bridge -> engine)
+if (typeof window !== 'undefined') {
+  window.__designosAPI = {
+    mkEl: mkEl,
+    delSel: delSel,
+    adjZ: adjZ,
+    S: S,
+    onSelectionChange: null,
+    findAny: findAny
+  };
+}
