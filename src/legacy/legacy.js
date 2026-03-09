@@ -5290,8 +5290,9 @@ function loadProject(json,fileName,opts){
     else{S.projId='p'+Date.now();setProjName((fileName&&fileName.replace(/\.(designos|json)$/i,''))||data.projName||'Imported project');}
     S.groups=Array.isArray(data.groups)?(data.groups||[]).slice():[];
     (Array.isArray(data.frames)?data.frames:[]).forEach(function(fr){S.frames.push(fr);renderFrame(fr);});
-    (Array.isArray(data.els)?data.els:[]).forEach(function(el){S.els.push(el);if(!el.frameId)renderElInto(el,elsLoose);});
+    (Array.isArray(data.els)?data.els:[]).forEach(function(el){S.els.push(el);});
     S.frames.filter(function(fr){return !fr.frameId;}).forEach(function(fr){if(getAL(fr)){applyAutoLayout(fr);}renderFrame(fr);});
+    renderLooseWithMasks();
     if(data.view&&typeof data.view.zoom==='number'&&typeof data.view.px==='number'&&typeof data.view.py==='number'){
       S.zoom=Math.max(0.05,Math.min(20,data.view.zoom));
       S.px=data.view.px;
