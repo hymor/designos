@@ -24,6 +24,8 @@ export interface EditorBridgeApi {
   zoomOut(): void;
   getSelection(): EditorSelection;
   getElementProperties?(id: string): EditorElementProperties | null;
+  updatePosition?(id: string, x: number, y: number): void;
+  updateSize?(id: string, width: number, height: number): void;
   on?(eventName: string, callback: (payload: EditorSelection) => void): void;
 }
 
@@ -173,6 +175,34 @@ export class EditorFacadeService {
     } catch (e) {
       console.warn('[EditorFacade] getElementProperties failed:', e);
       return null;
+    }
+  }
+
+  /** Update element position; canvas redraws, selection stays. */
+  updatePosition(id: string, x: number, y: number): void {
+    if (!this.isBridgeAvailable()) {
+      console.warn(BRIDGE_UNAVAILABLE_MSG, 'updatePosition() skipped.');
+      return;
+    }
+    try {
+      this.bridge!.updatePosition?.(id, x, y);
+      this.selectionSubject.next(this.getSelection());
+    } catch (e) {
+      console.warn('[EditorFacade] updatePosition failed:', e);
+    }
+  }
+
+  /** Update element size; canvas redraws, selection stays. */
+  updateSize(id: string, width: number, height: number): void {
+    if (!this.isBridgeAvailable()) {
+      console.warn(BRIDGE_UNAVAILABLE_MSG, 'updateSize() skipped.');
+      return;
+    }
+    try {
+      this.bridge!.updateSize?.(id, width, height);
+      this.selectionSubject.next(this.getSelection());
+    } catch (e) {
+      console.warn('[EditorFacade] updateSize failed:', e);
     }
   }
 }

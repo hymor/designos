@@ -1,49 +1,58 @@
 {
-  "hash": "da52c72e",
-  "configHash": "6c0c6dd7",
+  "hash": "061c1f24",
+  "configHash": "ff442c25",
   "lockfileHash": "1c80bb0e",
-  "browserHash": "225c7cde",
+  "browserHash": "f29d111b",
   "optimized": {
     "@angular/core": {
       "src": "../../../../../../node_modules/@angular/core/fesm2022/core.mjs",
       "file": "@angular_core.js",
-      "fileHash": "8a7684ca",
+      "fileHash": "6b0b38ee",
       "needsInterop": false
     },
     "@angular/platform-browser": {
       "src": "../../../../../../node_modules/@angular/platform-browser/fesm2022/platform-browser.mjs",
       "file": "@angular_platform-browser.js",
-      "fileHash": "6046d6a8",
+      "fileHash": "414396ee",
       "needsInterop": false
     },
     "@angular/router": {
       "src": "../../../../../../node_modules/@angular/router/fesm2022/router.mjs",
       "file": "@angular_router.js",
-      "fileHash": "ae797e04",
+      "fileHash": "52e9208f",
       "needsInterop": false
     },
     "rxjs": {
       "src": "../../../../../../node_modules/rxjs/dist/esm5/index.js",
       "file": "rxjs.js",
-      "fileHash": "6dceda8b",
+      "fileHash": "4469225b",
       "needsInterop": false
     },
     "rxjs/operators": {
       "src": "../../../../../../node_modules/rxjs/dist/esm5/operators/index.js",
       "file": "rxjs_operators.js",
-      "fileHash": "f610a613",
+      "fileHash": "a26a2370",
       "needsInterop": false
     },
     "zone.js": {
       "src": "../../../../../../node_modules/zone.js/fesm2015/zone.js",
       "file": "zone__js.js",
-      "fileHash": "4417c41f",
+      "fileHash": "3bb55261",
       "needsInterop": true
+    },
+    "@angular/forms": {
+      "src": "../../../../../../node_modules/@angular/forms/fesm2022/forms.mjs",
+      "file": "@angular_forms.js",
+      "fileHash": "3a50adde",
+      "needsInterop": false
     }
   },
   "chunks": {
-    "chunk-PFXMSAQA": {
-      "file": "chunk-PFXMSAQA.js"
+    "chunk-TDZGLUWI": {
+      "file": "chunk-TDZGLUWI.js"
+    },
+    "chunk-SR5SVSVU": {
+      "file": "chunk-SR5SVSVU.js"
     },
     "chunk-WHIVADGR": {
       "file": "chunk-WHIVADGR.js"

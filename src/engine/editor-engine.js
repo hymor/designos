@@ -94,6 +94,18 @@ export class EditorEngine {
     };
   }
 
+  updatePosition(id, x, y) {
+    const api = this._api();
+    if (!api || typeof api.updateItemPosition !== 'function') return;
+    api.updateItemPosition(id, x, y);
+  }
+
+  updateSize(id, width, height) {
+    const api = this._api();
+    if (!api || typeof api.updateItemSize !== 'function') return;
+    api.updateItemSize(id, width, height);
+  }
+
   getDocument() {
     const api = this._api();
     if (api && typeof api.getDocument === 'function') {

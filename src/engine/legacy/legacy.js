@@ -5918,6 +5918,50 @@ window.newProject = newProject;
 window.renameProject = renameProject;
 window.activateEyedropper = activateEyedropper;
 
+// Integration: update item position/size from Angular properties panel (minimal API, no big refactor)
+function updateItemPosition(id, x, y) {
+  var item = findAny(id);
+  if (!item) return;
+  var dx = (typeof x === 'number' ? x : item.x || 0) - (item.x || 0);
+  var dy = (typeof y === 'number' ? y : item.y || 0) - (item.y || 0);
+  if (!dx && !dy) return;
+  var fr = S.frames.find(function (f) { return f.id === id });
+  var grp = S.groups.find(function (g) { return g.id === id });
+  var el = S.els.find(function (e) { return e.id === id });
+  if (fr) { fr.x = (fr.x || 0) + dx; fr.y = (fr.y || 0) + dy; renderFrame(fr); }
+  else if (grp) {
+    function nudgeGroup(g2, ddx, ddy) {
+      g2.children.forEach(function (cid) {
+        var ch = findAny(cid); if (!ch) return;
+        if (ch.type === 'group') { ch.x = (ch.x || 0) + ddx; ch.y = (ch.y || 0) + ddy; nudgeGroup(ch, ddx, ddy); }
+        else if (ch.type === 'path') { movePath(ch, ddx, ddy); }
+        else { ch.x = (ch.x || 0) + ddx; ch.y = (ch.y || 0) + ddy; }
+      });
+    }
+    nudgeGroup(grp, dx, dy);
+    renderGroup(grp);
+  } else if (el) {
+    if (el.type === 'path') movePath(el, dx, dy);
+    else { el.x = (el.x || 0) + dx; el.y = (el.y || 0) + dy; }
+    renderEl(el);
+  }
+  drawSel(); refreshProps(); snapshot();
+  if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
+}
+function updateItemSize(id, w, h) {
+  var item = findAny(id);
+  if (!item) return;
+  if (S.groups.some(function (g) { return g.id === id })) return; // group size derived from children
+  if (typeof w === 'number') item.w = Math.max(0, w);
+  if (typeof h === 'number') item.h = Math.max(0, h);
+  var fr = S.frames.find(function (f) { return f.id === id });
+  var el = S.els.find(function (e) { return e.id === id });
+  if (fr) renderFrame(fr);
+  else if (el) renderEl(el);
+  drawSel(); refreshProps(); snapshot();
+  if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
+}
+
 // Integration: expose API for EditorEngine (Angular -> facade -> bridge -> engine)
 if (typeof window !== 'undefined') {
   window.__designosAPI = {
@@ -5927,6 +5971,8 @@ if (typeof window !== 'undefined') {
     S: S,
     onSelectionChange: null,
     findAny: findAny,
-    runEditorInit: runEditorInit
+    runEditorInit: runEditorInit,
+    updateItemPosition: updateItemPosition,
+    updateItemSize: updateItemSize
   };
 }

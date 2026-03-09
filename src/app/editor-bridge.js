@@ -78,6 +78,14 @@ class EditorBridge {
     return this.engine ? this.engine.getElementProperties(id) : null;
   }
 
+  updatePosition(id, x, y) {
+    if (this.engine) this.engine.updatePosition(id, x, y);
+  }
+
+  updateSize(id, width, height) {
+    if (this.engine) this.engine.updateSize(id, width, height);
+  }
+
   getDocument() {
     return this.engine ? this.engine.getDocument() : null;
   }

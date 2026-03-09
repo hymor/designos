@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import {
@@ -10,6 +11,7 @@ import {
   selector: 'app-properties-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FormsModule],
   template: `
     <div class="properties-panel">
       <div class="panel-title">Properties</div>
@@ -22,10 +24,22 @@ import {
         <dl class="props-list">
           <dt>id</dt><dd>{{ p.id }}</dd>
           <dt>type</dt><dd>{{ p.type }}</dd>
-          <dt>x</dt><dd>{{ p.x }}</dd>
-          <dt>y</dt><dd>{{ p.y }}</dd>
-          <dt>width</dt><dd>{{ p.width }}</dd>
-          <dt>height</dt><dd>{{ p.height }}</dd>
+          <dt>x</dt>
+          <dd>
+            <input type="number" class="prop-input" [ngModel]="editX" (ngModelChange)="editX = $event" (blur)="onPositionBlur(p.id)" />
+          </dd>
+          <dt>y</dt>
+          <dd>
+            <input type="number" class="prop-input" [ngModel]="editY" (ngModelChange)="editY = $event" (blur)="onPositionBlur(p.id)" />
+          </dd>
+          <dt>width</dt>
+          <dd>
+            <input type="number" class="prop-input" [ngModel]="editW" (ngModelChange)="editW = $event" (blur)="onSizeBlur(p.id)" />
+          </dd>
+          <dt>height</dt>
+          <dd>
+            <input type="number" class="prop-input" [ngModel]="editH" (ngModelChange)="editH = $event" (blur)="onSizeBlur(p.id)" />
+          </dd>
         </dl>
       } @else {
         <p class="no-selection">No selection</p>
@@ -66,12 +80,24 @@ import {
         font-size: 0.75rem;
         color: #666;
       }
+      .prop-input {
+        width: 100%;
+        box-sizing: border-box;
+        font-size: 0.875rem;
+        padding: 0.2rem 0.35rem;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+      }
     `,
   ],
 })
 export class PropertiesPanelComponent implements OnInit, OnDestroy {
   props: EditorElementProperties | null = null;
   selectionCount = 0;
+  editX = 0;
+  editY = 0;
+  editW = 0;
+  editH = 0;
   private readonly destroy$ = new Subject<void>();
 
   constructor(
@@ -90,8 +116,28 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
         const id = selection.primary ?? selection.ids[0] ?? null;
         this.props = id ? this.editorFacade.getElementProperties(id) : null;
         this.selectionCount = selection.ids?.length ?? 0;
+        if (this.props) {
+          this.editX = this.props.x;
+          this.editY = this.props.y;
+          this.editW = this.props.width;
+          this.editH = this.props.height;
+        }
         this.cdr.markForCheck();
       });
+  }
+
+  onPositionBlur(id: string): void {
+    const x = Number(this.editX);
+    const y = Number(this.editY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    this.editorFacade.updatePosition(id, x, y);
+  }
+
+  onSizeBlur(id: string): void {
+    const w = Number(this.editW);
+    const h = Number(this.editH);
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w < 0 || h < 0) return;
+    this.editorFacade.updateSize(id, w, h);
   }
 
   ngOnDestroy(): void {
