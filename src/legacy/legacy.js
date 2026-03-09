@@ -1,4 +1,3 @@
-// DesignOS v6 — Undo/Redo · Corner Radius · Snap to Grid
 // Architecture: frames use translate(x,y) transform so children (relative coords) follow automatically.
 
 import { S, dom } from '../core/state.js';
@@ -81,6 +80,7 @@ function applyHistSnap(idx){
   var d=JSON.parse(S.history[idx]);
   framesG.innerHTML=''; elsLoose.innerHTML=''; selOv.innerHTML=''; defsEl.innerHTML=''; sgG.innerHTML='';
   S.frames=d.frames; S.els=d.els; S.nid=d.nid; S.components=d.components||[]; S.selId=null; S.selIds=[];
+  if(S.rootOrder!==undefined)delete S.rootOrder;
   rerenderAll();
   refreshLayers(); refreshProps(); refreshCompPanel();
 }
@@ -1740,9 +1740,7 @@ function renderGroup(grp){
   //    gg.setAttribute('transform','translate('+(-pab.x)+','+(-pab.y)+')');
   //  }
   //}
-  renderChildrenWithMasks(grp.children || [], gg, grp.frameId || null, grp.id);
-  // Transparent hit rect for selection/drag
-  // If group is inside a frame, convert absolute bbox to frame-local for hit rect coords
+  // Hit rect first (behind children) so clicks on children reach child elements, not the group
   var hitX=bb.x,hitY=bb.y;
   if(grp.frameId){
     var hpf=S.frames.find(function(f){return f.id===grp.frameId;});
@@ -1759,7 +1757,6 @@ function renderGroup(grp){
 
       var add = e.shiftKey||e.ctrlKey||e.metaKey;
 
-      // Figma-style surface selection: first click on child group selects parent frame
       if(!add && cap.frameId && getActiveFrameId()!==cap.frameId){
         selectEl(cap.frameId);return;
       }
@@ -1803,6 +1800,7 @@ function renderGroup(grp){
     });
     gg.appendChild(hit);
   })(grp);
+  renderChildrenWithMasks(grp.children || [], gg, grp.frameId || null, grp.id);
   if(grp.frameId){var pfc=getFCG(grp.frameId);if(pfc){
     if(anchorGgParent===pfc&&anchorGg)pfc.insertBefore(gg,anchorGg);else pfc.appendChild(gg);
     return;
@@ -2021,6 +2019,9 @@ function ungroupSel(){
   ids.forEach(function(id){
     var grp=S.groups.find(function(g){return g.id===id});if(!grp)return;
     delete grp.isMask;
+    if(grp.isMaskGroup && grp.children.length){
+      var m=findAny(grp.children[0]);if(m)delete m.isMask;
+    }
     grp.children.forEach(function(cid){
       var item=findAny(cid);if(!item)return;
       item.groupId=null;
@@ -2084,14 +2085,53 @@ function makeMask(){
     if(it) delete it.isMask;
   });
   maskItem.isMask = true;
-  S.selIds = ids.slice();
-  S.selId = maskId;
+  var f0 = (items[0] && items[0].frameId) || null;
+  var sameFrame = items.every(function(it){ return (it.frameId || null) === f0; });
+  var parentFrameId = sameFrame ? f0 : null;
+  var x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  items.forEach(function(item){
+    var bb = getBBox(item);
+    x1 = Math.min(x1, bb.x); y1 = Math.min(y1, bb.y);
+    x2 = Math.max(x2, bb.x + bb.w); y2 = Math.max(y2, bb.y + bb.h);
+  });
+  var maskFirstIds = [maskId].concat(ids.filter(function(id){ return id !== maskId; }));
+  var grp = {
+    id: uid(),
+    type: 'group',
+    x: x1,
+    y: y1,
+    w: x2 - x1,
+    h: y2 - y1,
+    children: maskFirstIds,
+    name: 'Mask ' + (S.nid++),
+    frameId: parentFrameId,
+    groupId: null,
+    isMaskGroup: true
+  };
+  ids.forEach(function(id){
+    var item = findAny(id);
+    if(!item) return;
+    item.groupId = grp.id;
+    if(item.frameId){
+      var pf = S.frames.find(function(f){ return f.id === item.frameId; });
+      if(pf) pf.children = pf.children.filter(function(c){ return c !== id; });
+    }
+  });
+  if(parentFrameId){
+    var pf2 = S.frames.find(function(f){ return f.id === parentFrameId; });
+    if(pf2) pf2.children.push(grp.id);
+  }
+  S.groups.push(grp);
   rerenderAll();
   refreshLayers();
   refreshProps();
   drawSel();
   snapshot();
   toast('⬡ Mask applied');
+  S.selId = grp.id;
+  S.selIds = [grp.id];
+  drawSel();
+  refreshProps();
 }
 function releaseMask(){
   var item = findAny(S.selId);
@@ -2104,6 +2144,33 @@ function releaseMask(){
   refreshLayers();
   refreshProps();
   drawSel();
+  snapshot();
+  toast('Mask released');
+}
+function releaseMaskGroup(grpId){
+  var grp = S.groups.find(function(g){ return g.id === grpId; });
+  if(!grp || !grp.isMaskGroup) return;
+  var maskChild = grp.children.length ? findAny(grp.children[0]) : null;
+  if(maskChild) delete maskChild.isMask;
+  grp.children.forEach(function(cid){
+    var item = findAny(cid);
+    if(!item) return;
+    item.groupId = null;
+    if(item.type === 'frame') renderFrame(item);
+    else if(item.type === 'group') renderGroup(item);
+    else renderElInto(item, item.frameId ? getFCG(item.frameId) : elsLoose);
+  });
+  var gg = document.getElementById('gg' + grpId);
+  if(gg) gg.remove();
+  if(grp.frameId){
+    var pf = S.frames.find(function(f){ return f.id === grp.frameId; });
+    if(pf) pf.children = pf.children.filter(function(c){ return c !== grpId; });
+  }
+  S.groups = S.groups.filter(function(g){ return g.id !== grpId; });
+  clearSel();
+  rerenderAll();
+  refreshLayers();
+  refreshProps();
   snapshot();
   toast('Mask released');
 }
@@ -4341,6 +4408,31 @@ function alignItems(mode){
 }
 
 // ── LAYERS ──
+/** Unified root order: first id = top row in list. Uses S.rootOrder if set (after user reorder), else built from groups, frames, els. */
+function getRootListOrder(){
+  if(S.rootOrder&&S.rootOrder.length>0)return S.rootOrder.slice();
+  var rootG=S.groups.filter(function(g){return !g.frameId&&!g.groupId;});
+  var rootF=S.frames.filter(function(f){return !f.frameId&&!f.groupId;});
+  var rootE=S.els.filter(function(e){return !e.frameId&&!e.groupId;});
+  return [].concat(rootG).reverse().map(function(g){return g.id;})
+    .concat([].concat(rootF).reverse().map(function(f){return f.id;}))
+    .concat([].concat(rootE).reverse().map(function(e){return e.id;}));
+}
+/** Apply new root order (array of ids). Preserves unified order: root items in S.groups/S.frames/S.els follow order in ids. */
+function applyRootOrder(ids){
+  S.rootOrder=ids.slice();
+  var isGroup=function(id){return S.groups.some(function(g){return g.id===id;});};
+  var isFrame=function(id){return S.frames.some(function(f){return f.id===id;});};
+  var groupIds=ids.filter(isGroup);
+  var frameIds=ids.filter(isFrame);
+  var elIds=ids.filter(function(id){return !isGroup(id)&&!isFrame(id);});
+  var nonRootG=S.groups.filter(function(g){return !!g.frameId||!!g.groupId;});
+  var nonRootF=S.frames.filter(function(f){return !!f.frameId||!!f.groupId;});
+  var nonRootE=S.els.filter(function(e){return !!e.frameId||!!e.groupId;});
+  S.groups=nonRootG.concat(groupIds.map(function(id){return S.groups.find(function(g){return g.id===id;});}).filter(Boolean));
+  S.frames=nonRootF.concat(frameIds.map(function(id){return S.frames.find(function(f){return f.id===id;});}).filter(Boolean));
+  S.els=nonRootE.concat(elIds.map(function(id){return S.els.find(function(e){return e.id===id;});}).filter(Boolean));
+}
 function getParentChildrenArray(parentFrameId,parentGroupId,rootType){
   if(parentGroupId){
     var pg=S.groups.find(function(g){return g.id===parentGroupId;});
@@ -4356,9 +4448,33 @@ function getParentChildrenArray(parentFrameId,parentGroupId,rootType){
   return null;
 }
 function reorderLayerInTree(dragId,dropTargetId,dragParentFrame,dragParentGroup,dragRootType,dropParentFrame,dropParentGroup,dropRootType){
-  if(dragParentFrame!==dropParentFrame||dragParentGroup!==dropParentGroup||dragRootType!==dropRootType)return false;
+  console.log('[reorderLayerInTree]', { dragId, dropTargetId, dragParentFrame, dragParentGroup, dragRootType, dropParentFrame, dropParentGroup, dropRootType });
+  var bothRoot=!dragParentFrame&&!dragParentGroup&&!dropParentFrame&&!dropParentGroup;
+  if(bothRoot){
+    var rootOrder=getRootListOrder();
+    var fromIdx=rootOrder.indexOf(dragId);
+    var toIdx=rootOrder.indexOf(dropTargetId);
+    if(fromIdx<0||toIdx<0||fromIdx===toIdx){
+      console.log('[reorderLayerInTree] FAIL: root reorder fromIdx/toIdx', fromIdx, toIdx);
+      return false;
+    }
+    var one=rootOrder.splice(fromIdx,1)[0];
+    var newIdx=fromIdx<toIdx?toIdx-1:toIdx;
+    rootOrder.splice(newIdx,0,one);
+    applyRootOrder(rootOrder);
+    console.log('[reorderLayerInTree] OK, root unified reorder');
+    return {ok:true};
+  }
+  var sameContainer = dragParentFrame===dropParentFrame&&dragParentGroup===dropParentGroup&&dragRootType===dropRootType;
+  if(!sameContainer){
+    var crossResult=moveLayerBetweenContainers(dragId,dropTargetId,dragParentFrame,dragParentGroup,dragRootType,dropParentFrame,dropParentGroup,dropRootType);
+    return crossResult ? {ok:true,crossContainer:true} : false;
+  }
   var arr=getParentChildrenArray(dropParentFrame,dropParentGroup,dropRootType);
-  if(!arr)return false;
+  if(!arr){
+    console.log('[reorderLayerInTree] FAIL: getParentChildrenArray returned null');
+    return false;
+  }
   var fromIdx,toIdx;
   if(dragRootType){
     arr=arr.slice();
@@ -4368,7 +4484,11 @@ function reorderLayerInTree(dragId,dropTargetId,dragParentFrame,dragParentGroup,
     fromIdx=arr.indexOf(dragId);
     toIdx=arr.indexOf(dropTargetId);
   }
-  if(fromIdx<0||toIdx<0||fromIdx===toIdx)return false;
+  console.log('[reorderLayerInTree] arr.length=', arr.length, 'fromIdx=', fromIdx, 'toIdx=', toIdx);
+  if(fromIdx<0||toIdx<0||fromIdx===toIdx){
+    console.log('[reorderLayerInTree] FAIL: fromIdx or toIdx invalid or same');
+    return false;
+  }
   var one=arr.splice(fromIdx,1)[0];
   var newIdx=fromIdx<toIdx?toIdx-1:toIdx;
   arr.splice(newIdx,0,one);
@@ -4379,21 +4499,98 @@ function reorderLayerInTree(dragId,dropTargetId,dragParentFrame,dragParentGroup,
   } else if(dragRootType==='group'){
     S.groups=S.groups.filter(function(g){return !!g.frameId||!!g.groupId;}).concat(arr);
   }
+  console.log('[reorderLayerInTree] OK, applied');
+  return {ok:true};
+}
+function moveLayerBetweenContainers(dragId,dropTargetId,dragParentFrame,dragParentGroup,dragRootType,dropParentFrame,dropParentGroup,dropRootType){
+  var dragGrp=S.groups.find(function(g){return g.id===dragId;});
+  var dragFr=S.frames.find(function(f){return f.id===dragId;});
+  var dragEl=S.els.find(function(e){return e.id===dragId;});
+  var dragObj=dragGrp||dragFr||dragEl;
+  if(!dragObj){
+    console.log('[reorderLayerInTree] FAIL: moveLayerBetweenContainers drag not found');
+    return false;
+  }
+  var dragType=dragGrp?'group':dragFr?'frame':'el';
+  var dropArr=getParentChildrenArray(dropParentFrame,dropParentGroup,dropRootType);
+  if(!dropArr){
+    console.log('[reorderLayerInTree] FAIL: moveLayerBetweenContainers drop container null');
+    return false;
+  }
+  var toIdx=dropRootType?dropArr.findIndex(function(x){return x.id===dropTargetId;}):dropArr.indexOf(dropTargetId);
+  if(toIdx<0){
+    console.log('[reorderLayerInTree] FAIL: moveLayerBetweenContainers dropTargetId not in container');
+    return false;
+  }
+  function removeFromSource(){
+    if(!dragParentFrame&&!dragParentGroup){
+      var rootOrder=getRootListOrder();
+      var idx=rootOrder.indexOf(dragId);
+      if(idx>=0){rootOrder.splice(idx,1);applyRootOrder(rootOrder);}
+      dragObj.frameId=null;dragObj.groupId=null;
+      return;
+    }
+    if(dragParentGroup){
+      var pg=S.groups.find(function(g){return g.id===dragParentGroup;});
+      if(pg&&pg.children){pg.children=pg.children.filter(function(cid){return cid!==dragId;});}
+    } else if(dragParentFrame){
+      var pf=S.frames.find(function(f){return f.id===dragParentFrame;});
+      if(pf&&pf.children){pf.children=pf.children.filter(function(cid){return cid!==dragId;});}
+    }
+  }
+  function addToTarget(){
+    if(!dropParentFrame&&!dropParentGroup){
+      dragObj.frameId=null;dragObj.groupId=null;
+      var rootOrder=getRootListOrder();
+      var insertIdx=rootOrder.indexOf(dropTargetId);
+      if(insertIdx<0)insertIdx=rootOrder.length;
+      rootOrder.splice(insertIdx,0,dragId);
+      applyRootOrder(rootOrder);
+      return;
+    }
+    if(dropParentGroup){
+      var dpg=S.groups.find(function(g){return g.id===dropParentGroup;});
+      if(dpg){
+        dragObj.frameId=dpg.frameId||null;dragObj.groupId=dropParentGroup;
+        dpg.children=dpg.children||[];
+        var i=dpg.children.indexOf(dropTargetId);if(i<0)i=dpg.children.length;
+        dpg.children.splice(i,0,dragId);
+      }
+    } else if(dropParentFrame){
+      var dpf=S.frames.find(function(f){return f.id===dropParentFrame;});
+      if(dpf){
+        dragObj.frameId=dropParentFrame;dragObj.groupId=null;
+        dpf.children=dpf.children||[];
+        var j=dpf.children.indexOf(dropTargetId);if(j<0)j=dpf.children.length;
+        dpf.children.splice(j,0,dragId);
+      }
+    }
+  }
+  removeFromSource();
+  addToTarget();
+  console.log('[reorderLayerInTree] OK, moved between containers');
   return true;
 }
 function applyReorderAndRerender(dragParentFrame,dragParentGroup,dragRootType){
+  console.log('[applyReorderAndRerender]', { dragParentFrame, dragParentGroup, dragRootType });
   if(dragRootType==='frame'){
     framesG.innerHTML='';
     S.frames.filter(function(f){return !f.frameId&&!f.groupId;}).forEach(function(f){renderFrame(f);});
     renderLooseWithMasks();
+    console.log('[applyReorderAndRerender] branch: frame');
   } else if(dragRootType==='group'||dragRootType==='el'){
     renderLooseWithMasks();
+    console.log('[applyReorderAndRerender] branch: group/el');
   } else if(dragParentFrame){
     var fr=S.frames.find(function(f){return f.id===dragParentFrame;});
     if(fr){var fc=getFCG(fr.id);if(fc){fc.innerHTML='';renderChildrenWithMasks(fr.children||[],fc,fr.id,null);}}
+    console.log('[applyReorderAndRerender] branch: parentFrame');
   } else if(dragParentGroup){
     var gr=S.groups.find(function(g){return g.id===dragParentGroup;});
     if(gr)renderGroup(gr);
+    console.log('[applyReorderAndRerender] branch: parentGroup');
+  } else {
+    console.log('[applyReorderAndRerender] branch: none (no match)');
   }
 }
 function refreshLayers(){
@@ -4426,13 +4623,18 @@ function refreshLayers(){
       if(ce3)items.push({type:'child',obj:ce3,depth:depth+1,parentFrameId:fr.id,parentGroupId:'',rootType:''});
     });
   }
-  [].concat(S.groups).reverse().filter(function(g){return !g.groupId&&!g.frameId;}).forEach(function(grp){addGroup(grp,0,'','','group');});
-  [].concat(S.frames).reverse().filter(function(f){return !f.frameId;}).forEach(function(fr){addFrame(fr,0,'','','frame');});
-  [].concat(S.els).reverse().filter(function(e){return !e.frameId&&!e.groupId;}).forEach(function(el){items.push({type:'el',obj:el,depth:0,parentFrameId:'',parentGroupId:'',rootType:'el'});});
+  getRootListOrder().forEach(function(id){
+    var grp=S.groups.find(function(g){return g.id===id;});
+    if(grp){addGroup(grp,0,'','','group');return;}
+    var fr=S.frames.find(function(f){return f.id===id;});
+    if(fr){addFrame(fr,0,'','','frame');return;}
+    var el=S.els.find(function(e){return e.id===id;});
+    if(el){items.push({type:'el',obj:el,depth:0,parentFrameId:'',parentGroupId:'',rootType:'el'});}
+  });
   items.forEach(function(item){
     var d=document.createElement('div');
     var isF=item.type==='frame',isGrp=item.type==='group';
-    var isComp=!!item.obj.isComponent,isInst=!!item.obj.isInstance,isMask=!!(item.obj.isMask);
+    var isComp=!!item.obj.isComponent,isInst=!!item.obj.isInstance,isMask=!!(item.obj.isMask),isMaskGrp=!!(isGrp&&item.obj.isMaskGroup);
     var isSel=item.obj.id===S.selId,isM2=!isSel&&S.selIds.indexOf(item.obj.id)>=0;
     var cls='li draggable'+(isSel?' sel':isM2?' msel':'');
     if(isComp)cls+=' comp-li';else if(isInst)cls+=' inst-li';else if(isF)cls+=' frame-li';else if(isGrp)cls+=' group-li';
@@ -4448,6 +4650,7 @@ function refreshLayers(){
     var badge = '';
     if(isComp) badge = '<span class="comp-badge">✦ C</span>';
     else if(isInst) badge = '<span class="inst-badge">⬡ I</span>';
+    else if(isMaskGrp) badge = '<span class="mask-badge">⬡ Mask</span>';
     else if(isMask) badge = '<span class="mask-badge">⬡ Mask</span>';
     else if(isGrp) badge = '<span class="group-badge">⊞ G</span>';
     var hasKidsF=isF&&item.obj.children&&item.obj.children.length>0;
@@ -4475,9 +4678,11 @@ function refreshLayers(){
     d.addEventListener('click',function(e){if(e.target.closest('.li-fold'))return;selectEl(item.obj.id,e.shiftKey||e.ctrlKey||e.metaKey);setTool('select');});
     d.addEventListener('dragstart',function(e){
       e.stopPropagation();
-      e.dataTransfer.setData('application/x-designos-layer',JSON.stringify({id:item.obj.id,parentFrame:item.parentFrameId||'',parentGroup:item.parentGroupId||'',rootType:item.rootType||''}));
+      var payload={id:item.obj.id,parentFrame:item.parentFrameId||'',parentGroup:item.parentGroupId||'',rootType:item.rootType||''};
+      e.dataTransfer.setData('application/x-designos-layer',JSON.stringify(payload));
       e.dataTransfer.effectAllowed='move';
       d.classList.add('li-dragging');
+      console.log('[Layers dragstart]', { id: payload.id, name: item.obj.name, parentFrame: payload.parentFrame, parentGroup: payload.parentGroup, rootType: payload.rootType });
     });
     d.addEventListener('dragend',function(){
       d.classList.remove('li-dragging');
@@ -4504,14 +4709,23 @@ function refreshLayers(){
       d.classList.remove('li-drop-target');
       var ind=document.getElementById('layer-drop-indicator');if(ind)ind.style.display='none';
       var raw=e.dataTransfer.getData('application/x-designos-layer');
-      if(!raw)return;
-      var dragData;try{dragData=JSON.parse(raw);}catch(err){return;}
+      if(!raw){ console.log('[Layers drop] no data'); return; }
+      var dragData;try{dragData=JSON.parse(raw);}catch(err){ console.log('[Layers drop] parse err', err); return; }
       var dragId=dragData.id;
       var dropId=d.dataset.layerId;
-      if(dragId===dropId)return;
-      var ok=reorderLayerInTree(dragId,dropId,dragData.parentFrame,dragData.parentGroup,dragData.rootType,d.dataset.parentFrame,d.dataset.parentGroup,d.dataset.rootType);
+      var dropPayload={ parentFrame: d.dataset.parentFrame||'', parentGroup: d.dataset.parentGroup||'', rootType: d.dataset.rootType||'' };
+      console.log('[Layers drop]', { dragId, dropId, drag: dragData, drop: dropPayload });
+      if(dragId===dropId){ console.log('[Layers drop] same id, skip'); return; }
+      var result=reorderLayerInTree(dragId,dropId,dragData.parentFrame,dragData.parentGroup,dragData.rootType,d.dataset.parentFrame,d.dataset.parentGroup,d.dataset.rootType);
+      var ok=result&&(typeof result==='object'?result.ok:result);
+      console.log('[Layers drop] reorderLayerInTree result:', result);
       if(ok){
-        applyReorderAndRerender(dragData.parentFrame,dragData.parentGroup,dragData.rootType);
+        if(result&&result.crossContainer)
+          rerenderAll();
+        else if(!dragData.parentFrame&&!dragData.parentGroup&&!d.dataset.parentFrame&&!d.dataset.parentGroup)
+          rerenderAll();
+        else
+          applyReorderAndRerender(dragData.parentFrame,dragData.parentGroup,dragData.rootType);
         drawSel();
         refreshLayers();
         refreshProps();
@@ -4569,12 +4783,17 @@ function refreshProps(){
   }
   var selGrp=S.groups.find(function(g){return g.id===S.selId});
   if(selGrp){
-    var h2='<div class="ps"><div class="ps-t">'+(selGrp.isMask?'⬡ Mask Group':'⊞ Group')+'</div>';
+    var grpTitle = selGrp.isMaskGroup ? '⬡ Mask' : (selGrp.isMask ? '⬡ Mask Group' : '⊞ Group');
+    var h2='<div class="ps"><div class="ps-t">'+grpTitle+'</div>';
     h2+='<div style="font-size:11px;color:var(--text3);margin-bottom:8px">'+selGrp.children.length+' objects</div>';
+    if(selGrp.isMaskGroup){
+      h2+='<button class="del-btn" id="release-mask-grp-btn" style="margin-bottom:6px;background:rgba(123,97,255,.1);border-color:var(--accent);color:var(--accent)">Release Mask</button>';
+    }
     h2+='<button class="del-btn" id="ungroup-pp-btn" style="margin-bottom:6px;background:rgba(123,97,255,.1);border-color:var(--accent);color:var(--accent)">⊟ Ungroup</button>';
     h2+='</div><div class="ps"><button class="del-btn" id="ppdel">Delete Group</button></div>';
     propsDiv.innerHTML=h2;
     var ub=document.getElementById('ungroup-pp-btn');if(ub)ub.addEventListener('click',function(){S.selIds=[selGrp.id];S.selId=selGrp.id;ungroupSel();});
+    var rmbGrp=document.getElementById('release-mask-grp-btn');if(rmbGrp)rmbGrp.addEventListener('click',function(){releaseMaskGroup(selGrp.id);});
     var db=document.getElementById('ppdel');if(db)db.addEventListener('click',delSel);
     return;
   }
@@ -5066,6 +5285,7 @@ function loadProject(json,fileName,opts){
     var repaired=validateAndRepairProject(data);
     framesG.innerHTML='';elsLoose.innerHTML='';selOv.innerHTML='';defsEl.innerHTML='';sgG.innerHTML='';
     S.frames=[];S.els=[];S.groups=[];S.selId=null;S.selIds=[];S.nid=typeof data.nid==='number'?data.nid:1;S.components=Array.isArray(data.components)?data.components:[];activeGradStop=0;
+    if(S.rootOrder!==undefined)delete S.rootOrder;
     if(data.projId){S.projId=data.projId;setProjName(data.projName||'Untitled');}
     else{S.projId='p'+Date.now();setProjName((fileName&&fileName.replace(/\.(designos|json)$/i,''))||data.projName||'Imported project');}
     S.groups=Array.isArray(data.groups)?(data.groups||[]).slice():[];
