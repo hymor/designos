@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import {
@@ -9,12 +9,16 @@ import {
 @Component({
   selector: 'app-properties-panel',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="properties-panel">
       <div class="panel-title">Properties</div>
       @if (!bridgeAvailable) {
         <p class="no-selection bridge-unavailable">Bridge unavailable</p>
       } @else if (props; as p) {
+        @if (selectionCount > 1) {
+          <p class="multi-hint">{{ selectionCount }} items selected</p>
+        }
         <dl class="props-list">
           <dt>id</dt><dd>{{ p.id }}</dd>
           <dt>type</dt><dd>{{ p.type }}</dd>
@@ -57,14 +61,23 @@ import {
       .bridge-unavailable {
         color: #c00;
       }
+      .multi-hint {
+        margin: 0 0 0.5rem 0;
+        font-size: 0.75rem;
+        color: #666;
+      }
     `,
   ],
 })
 export class PropertiesPanelComponent implements OnInit, OnDestroy {
   props: EditorElementProperties | null = null;
+  selectionCount = 0;
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly editorFacade: EditorFacadeService) {}
+  constructor(
+    private readonly editorFacade: EditorFacadeService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   get bridgeAvailable(): boolean {
     return this.editorFacade.isBridgeAvailable();
@@ -76,6 +89,8 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
       .subscribe((selection) => {
         const id = selection.primary ?? selection.ids[0] ?? null;
         this.props = id ? this.editorFacade.getElementProperties(id) : null;
+        this.selectionCount = selection.ids?.length ?? 0;
+        this.cdr.markForCheck();
       });
   }
 

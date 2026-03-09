@@ -94,6 +94,7 @@ export class EditorFacadeService {
     if (!this.bridge) return;
     try {
       this.bridge.init(canvas ?? null);
+      // Sync selection state and subscribe: legacy calls __designosAPI.onSelectionChange → bridge emits 'selectionChanged'
       this.selectionSubject.next(this.getSelection());
       const onSelectionChanged = (payload: EditorSelection) => this.selectionSubject.next(payload);
       this.bridge.on?.('selectionChanged', onSelectionChanged);
