@@ -1242,7 +1242,14 @@ function renderEl(el){
   if(el.type==='table'){
     var oldT=document.getElementById('g'+el.id);if(oldT)oldT.remove();
     var parent=el.frameId?(getFCG(el.frameId)||elsLoose):elsLoose;
-    tableModule.renderTable(el,parent,{ns:ns,findAny:findAny,renderElInto:function(ell,pg,ig){renderElInto(ell,pg,ig);},onTableHit:onTableHit,openTed:openTed});
+    tableModule.renderTable(el,parent,{
+      ns:ns,
+      findAny:findAny,
+      renderElInto:function(ell,pg,ig){renderElInto(ell,pg,ig);},
+      onTableHit:onTableHit,
+      openTed:openTed,
+      selectEl:function(targetId,add){selectEl(targetId,!!add);}
+    });
     return;
   }
   if(el.frameId){var fc=getFCG(el.frameId);if(fc)renderElInto(el,fc);else{el.frameId=null;renderElInto(el,elsLoose);}}

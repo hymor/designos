@@ -207,6 +207,7 @@ export function renderTable(tableEl, parentNode, api) {
       cellHit.addEventListener('dblclick', function (e) {
         e.stopPropagation();
         e.preventDefault();
+        if (api.selectEl) api.selectEl(cellEl.id, false);
         if (api.openTed && cellEl.type === 'text') api.openTed(cellEl);
       });
       g.appendChild(cellHit);
@@ -231,6 +232,7 @@ export function renderTable(tableEl, parentNode, api) {
       if (!id) return;
       const cellEl = findAny(id);
       if (cellEl && cellEl.tableCell && cellEl.type === 'text') {
+        if (api.selectEl) api.selectEl(cellEl.id, false);
         e.stopPropagation();
         e.preventDefault();
         api.openTed(cellEl);
