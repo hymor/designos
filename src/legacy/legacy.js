@@ -5329,7 +5329,7 @@ function refreshProps(){
 
 // ── SAVE / LOAD ──
 function saveProject(){
-  var data={version:8,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components,view:{zoom:S.zoom,px:S.px,py:S.py}};
+  var data={version:8,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components,rootOrder:S.rootOrder&&S.rootOrder.length?S.rootOrder:getRootListOrder(),view:{zoom:S.zoom,px:S.px,py:S.py}};
   var blob=new Blob([JSON.stringify(data)],{type:'application/json'});
   var fname=(S.projName||'project').replace(/[/\\:*?"<>|]/g,'').replace(/\s+/g,' ').trim()||'project';
   var url=URL.createObjectURL(blob);var a=document.createElement('a');a.download=fname+'.designos';a.href=url;a.click();URL.revokeObjectURL(url);toast('Saved ✓');
@@ -5376,6 +5376,7 @@ function loadProject(json,fileName,opts){
     S.groups=Array.isArray(data.groups)?(data.groups||[]).slice():[];
     (Array.isArray(data.frames)?data.frames:[]).forEach(function(fr){S.frames.push(fr);renderFrame(fr);});
     (Array.isArray(data.els)?data.els:[]).forEach(function(el){S.els.push(el);});
+    if(Array.isArray(data.rootOrder)&&data.rootOrder.length>0)applyRootOrder(data.rootOrder);
     S.frames.filter(function(fr){return !fr.frameId;}).forEach(function(fr){if(getAL(fr)){applyAutoLayout(fr);}renderFrame(fr);});
     renderLooseWithMasks();
     if(data.view&&typeof data.view.zoom==='number'&&typeof data.view.px==='number'&&typeof data.view.py==='number'){
@@ -5386,7 +5387,7 @@ function loadProject(json,fileName,opts){
     applyTr();drawSnapGrid();
     refreshLayers();refreshProps();refreshCompPanel();snapshot();
     if(!data.projId){
-      var payload=JSON.stringify({version:8,projId:S.projId,projName:S.projName,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components,view:{zoom:S.zoom,px:S.px,py:S.py}});
+      var payload=JSON.stringify({version:8,projId:S.projId,projName:S.projName,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components,rootOrder:S.rootOrder&&S.rootOrder.length?S.rootOrder:getRootListOrder(),view:{zoom:S.zoom,px:S.px,py:S.py}});
       var saved=false;
       for(var attempt=0;attempt<4;attempt++){
         try{localStorage.setItem('dos_proj_'+S.projId,payload);saved=true;break;}catch(e){
@@ -5444,7 +5445,7 @@ function scheduleAutoSave(){
 function doAutoSave(){
   clearTimeout(_autoSaveTimer);_autoSaveTimer=null;
   if(!S.projId) S.projId='p'+Date.now();
-  var data={version:8,projId:S.projId,projName:S.projName,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components,view:{zoom:S.zoom,px:S.px,py:S.py}};
+  var data={version:8,projId:S.projId,projName:S.projName,nid:S.nid,frames:S.frames,els:S.els,groups:S.groups,components:S.components,rootOrder:S.rootOrder&&S.rootOrder.length?S.rootOrder:getRootListOrder(),view:{zoom:S.zoom,px:S.px,py:S.py}};
   var json=JSON.stringify(data);
   for(var attempt=0;attempt<4;attempt++){
     try{localStorage.setItem('dos_proj_'+S.projId,json);break;}catch(e){
