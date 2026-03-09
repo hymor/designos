@@ -26,6 +26,8 @@ const DEMO_DOC: EditorDocument = {
       <span class="bridge-status" [class.unavailable]="!bridgeAvailable">Bridge: {{ bridgeAvailable ? 'available' : 'unavailable' }}</span>
       <button type="button" (click)="onRect()">Rect</button>
       <button type="button" (click)="onZoomIn()">Zoom +</button>
+      <button type="button" (click)="onUndo()" title="Undo">Undo</button>
+      <button type="button" (click)="onRedo()" title="Redo">Redo</button>
       <button type="button" class="dev-btn" (click)="onSaveDoc()" title="Save document to memory and log to console">Save Doc</button>
       <button type="button" class="dev-btn" (click)="onLoadDoc()" title="Load last saved or demo document">Load Doc</button>
       <button type="button" class="dev-btn" (click)="onSaveServer()" title="Save document to backend">Save Server</button>
@@ -74,6 +76,14 @@ export class ToolbarComponent {
 
   onZoomIn(): void {
     this.editorFacade.zoomIn();
+  }
+
+  onUndo(): void {
+    this.editorFacade.undo();
+  }
+
+  onRedo(): void {
+    this.editorFacade.redo();
   }
 
   /** Dev: save current document to memory and log to console. */

@@ -43,6 +43,8 @@ export interface EditorBridgeApi {
   updateSize?(id: string, width: number, height: number): void;
   getDocument?(): EditorDocument | null;
   loadDocument?(doc: EditorDocument | string): void;
+  undo?(): void;
+  redo?(): void;
   on?(eventName: string, callback: (payload: EditorSelection) => void): void;
 }
 
@@ -248,6 +250,34 @@ export class EditorFacadeService {
       this.selectionSubject.next(this.getSelection());
     } catch (e) {
       console.warn('[EditorFacade] loadDocument failed:', e);
+    }
+  }
+
+  /** Undo last action; canvas and selection update. */
+  undo(): void {
+    if (!this.isBridgeAvailable()) {
+      console.warn(BRIDGE_UNAVAILABLE_MSG, 'undo() skipped.');
+      return;
+    }
+    try {
+      this.bridge!.undo?.();
+      this.selectionSubject.next(this.getSelection());
+    } catch (e) {
+      console.warn('[EditorFacade] undo failed:', e);
+    }
+  }
+
+  /** Redo last undone action; canvas and selection update. */
+  redo(): void {
+    if (!this.isBridgeAvailable()) {
+      console.warn(BRIDGE_UNAVAILABLE_MSG, 'redo() skipped.');
+      return;
+    }
+    try {
+      this.bridge!.redo?.();
+      this.selectionSubject.next(this.getSelection());
+    } catch (e) {
+      console.warn('[EditorFacade] redo failed:', e);
     }
   }
 

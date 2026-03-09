@@ -106,6 +106,16 @@ export class EditorEngine {
     api.updateItemSize(id, width, height);
   }
 
+  undo() {
+    const api = this._api();
+    if (api && typeof api.undo === 'function') api.undo();
+  }
+
+  redo() {
+    const api = this._api();
+    if (api && typeof api.redo === 'function') api.redo();
+  }
+
   getDocument() {
     const api = this._api();
     if (api && typeof api.getDocument === 'function') {

@@ -5998,6 +5998,8 @@ if (typeof window !== 'undefined') {
     updateItemPosition: updateItemPosition,
     updateItemSize: updateItemSize,
     getDocument: getDocument,
-    loadDocument: loadDocument
+    loadDocument: loadDocument,
+    undo: undo,
+    redo: redo
   };
 }

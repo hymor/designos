@@ -86,6 +86,14 @@ class EditorBridge {
     if (this.engine) this.engine.updateSize(id, width, height);
   }
 
+  undo() {
+    if (this.engine) this.engine.undo();
+  }
+
+  redo() {
+    if (this.engine) this.engine.redo();
+  }
+
   getDocument() {
     return this.engine ? this.engine.getDocument() : null;
   }
