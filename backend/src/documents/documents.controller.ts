@@ -1,32 +1,27 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { EditorDocumentDto } from '../common/dto/document.dto';
-import { SaveDocumentDto } from './dto/save-document.dto';
+import { Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common';
+
+/** In-memory store (no DB). Key = projectId, value = document JSON. */
+const documentStore = new Map<string, Record<string, unknown>>();
 
 @Controller('documents')
 export class DocumentsController {
-  @Get()
-  list() {
-    return { items: [], total: 0 };
+  /** Save document by project id. Body = full document (legacy format). */
+  @Post(':id')
+  save(@Param('id') id: string, @Body() document: Record<string, unknown>) {
+    if (!document || typeof document !== 'object') {
+      document = {};
+    }
+    documentStore.set(id, { ...document });
+    return { id, saved: true };
   }
 
-  @Post()
-  save(@Body() dto: SaveDocumentDto) {
-    const doc = dto.document ?? ({} as EditorDocumentDto);
-    return {
-      id: doc.id ?? `doc-${Date.now()}`,
-      name: doc.name ?? 'Untitled',
-      saved: true,
-    };
-  }
-
+  /** Load document by project id. */
   @Get(':id')
   get(@Param('id') id: string) {
-    const doc: EditorDocumentDto = {
-      id,
-      name: 'Untitled',
-      pages: [],
-      activePageId: null,
-    };
+    const doc = documentStore.get(id);
+    if (doc === undefined) {
+      throw new NotFoundException(`Document ${id} not found`);
+    }
     return doc;
   }
 }

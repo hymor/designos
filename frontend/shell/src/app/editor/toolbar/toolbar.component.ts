@@ -28,6 +28,8 @@ const DEMO_DOC: EditorDocument = {
       <button type="button" (click)="onZoomIn()">Zoom +</button>
       <button type="button" class="dev-btn" (click)="onSaveDoc()" title="Save document to memory and log to console">Save Doc</button>
       <button type="button" class="dev-btn" (click)="onLoadDoc()" title="Load last saved or demo document">Load Doc</button>
+      <button type="button" class="dev-btn" (click)="onSaveServer()" title="Save document to backend">Save Server</button>
+      <button type="button" class="dev-btn" (click)="onLoadServer()" title="Load document from backend">Load Server</button>
     </div>
   `,
   styles: [
@@ -89,5 +91,29 @@ export class ToolbarComponent {
   onLoadDoc(): void {
     const toLoad = this.lastSavedDoc ?? DEMO_DOC;
     this.editorFacade.loadDocument(toLoad);
+  }
+
+  /** Default project id for Save/Load Server (dev). */
+  private get serverProjectId(): string {
+    const doc = this.editorFacade.getDocument();
+    return (doc?.projId as string) ?? 'default';
+  }
+
+  /** Save current document to backend. */
+  onSaveServer(): void {
+    const projectId = this.serverProjectId;
+    this.editorFacade.saveToServer(projectId).subscribe({
+      next: () => console.log('[Toolbar] Saved to server:', projectId),
+      error: (err) => console.warn('[Toolbar] Save to server failed:', err),
+    });
+  }
+
+  /** Load document from backend. */
+  onLoadServer(): void {
+    const projectId = this.serverProjectId;
+    this.editorFacade.loadFromServer(projectId).subscribe({
+      next: () => console.log('[Toolbar] Loaded from server:', projectId),
+      error: (err) => console.warn('[Toolbar] Load from server failed:', err),
+    });
   }
 }

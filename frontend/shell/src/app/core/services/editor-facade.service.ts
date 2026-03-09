@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, type Observable } from 'rxjs';
+import { BehaviorSubject, Observable, of, switchMap, throwError } from 'rxjs';
 import { bootstrapLegacyEditor } from '@designos/bootstrap-legacy-editor';
+import { EditorApiService } from './editor-api.service';
 
 export interface EditorSelection {
   ids: string[];
@@ -69,6 +70,9 @@ export class EditorFacadeService {
 
   /** Bridge created by init() via bootstrapLegacyEditor(canvas); primary source. */
   private bridgeInstance: EditorBridgeApi | null = null;
+
+  constructor(private readonly editorApi: EditorApiService) {}
+
 
   /** Bridge: instance first, then window.editorBridge as optional debug fallback. */
   private get bridge(): EditorBridgeApi | undefined {
@@ -245,5 +249,24 @@ export class EditorFacadeService {
     } catch (e) {
       console.warn('[EditorFacade] loadDocument failed:', e);
     }
+  }
+
+  /** Save current document to server. Uses getDocument() and EditorApiService. */
+  saveToServer(projectId: string): Observable<{ id: string; saved: boolean }> {
+    const doc = this.getDocument();
+    if (doc == null) {
+      return throwError(() => new Error('No document to save'));
+    }
+    return this.editorApi.saveDocument(projectId, doc);
+  }
+
+  /** Load document from server and apply to editor. */
+  loadFromServer(projectId: string): Observable<void> {
+    return this.editorApi.loadDocument(projectId).pipe(
+      switchMap((doc) => {
+        this.loadDocument(doc);
+        return of(undefined);
+      }),
+    );
   }
 }
