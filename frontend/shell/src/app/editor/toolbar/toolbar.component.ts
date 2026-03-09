@@ -103,7 +103,10 @@ export class ToolbarComponent {
   onSaveServer(): void {
     const projectId = this.serverProjectId;
     this.editorFacade.saveToServer(projectId).subscribe({
-      next: () => console.log('[Toolbar] Saved to server:', projectId),
+      next: () => {
+        console.log('[Toolbar] Saved to server:', projectId);
+        console.log('[Toolbar] Проверка: GET http://localhost:3000/api/documents/' + projectId);
+      },
       error: (err) => console.warn('[Toolbar] Save to server failed:', err),
     });
   }
