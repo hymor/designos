@@ -1,10 +1,6 @@
-import {
-  AfterViewInit,
-  Component,
-  ViewChild,
-  ElementRef,
-} from '@angular/core';
+import { AfterViewInit, Component, ElementRef, ViewChild } from '@angular/core';
 import { EditorFacadeService } from '../../core/services/editor-facade.service';
+import { ContextMenuService } from '../../core/services/context-menu.service';
 
 @Component({
   selector: 'app-canvas-host',
@@ -31,12 +27,23 @@ export class CanvasHostComponent implements AfterViewInit {
   @ViewChild('hostRef', { static: false })
   hostRef!: ElementRef<HTMLElement>;
 
-  constructor(private readonly editorFacade: EditorFacadeService) {}
+  constructor(
+    private readonly editorFacade: EditorFacadeService,
+    private readonly contextMenu: ContextMenuService,
+  ) {}
 
   ngAfterViewInit(): void {
     const container = this.hostRef?.nativeElement ?? null;
     if (container) {
       this.editorFacade.init(container);
+      container.addEventListener('contextmenu', (e: MouseEvent) => this.onContextMenu(e));
     }
+  }
+
+  private onContextMenu(e: MouseEvent): void {
+    e.preventDefault();
+    const sel = this.editorFacade.getSelection();
+    const kind = sel.ids && sel.ids.length ? 'object' : 'artboard';
+    this.contextMenu.open(kind, e.clientX, e.clientY);
   }
 }

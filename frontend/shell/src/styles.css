@@ -3,3 +3,9 @@ html, body {
   height: 100%;
   margin: 0;
 }
+
+/* Hide legacy DOM-driven object context menu when Angular shell is active. */
+#obj-context-menu {
+  display: none !important;
+}
+

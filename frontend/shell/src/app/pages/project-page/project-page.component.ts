@@ -3,13 +3,23 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject, distinctUntilChanged, filter, map, switchMap, take, takeUntil, tap } from 'rxjs';
 import { EditorFacadeService } from '../../core/services/editor-facade.service';
 import { EditorShellComponent } from '../../editor/editor-shell/editor-shell.component';
+import { ContextMenuComponent } from '../../shared/context-menu/context-menu.component';
+import { RecentModalComponent } from '../../shared/modals/recent-modal/recent-modal.component';
+import { TableCreateModalComponent } from '../../shared/modals/table-create-modal/table-create-modal.component';
 import { ToastComponent } from '../../shared/toast/toast.component';
 import { ToastService } from '../../core/services/toast.service';
 
 @Component({
   selector: 'app-project-page',
   standalone: true,
-  imports: [RouterLink, EditorShellComponent, ToastComponent],
+  imports: [
+    RouterLink,
+    EditorShellComponent,
+    ToastComponent,
+    ContextMenuComponent,
+    RecentModalComponent,
+    TableCreateModalComponent,
+  ],
   template: `
     <div class="page">
       <div class="topbar">
@@ -29,6 +39,9 @@ import { ToastService } from '../../core/services/toast.service';
         <app-editor-shell></app-editor-shell>
       </div>
 
+      <app-context-menu></app-context-menu>
+      <app-recent-modal></app-recent-modal>
+      <app-table-create-modal></app-table-create-modal>
       <app-toast></app-toast>
     </div>
   `,

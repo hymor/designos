@@ -1,8 +1,9 @@
 import { AsyncPipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { combineLatest, map, of, startWith } from 'rxjs';
-import { Router } from '@angular/router';
 import { EditorFacadeService } from '../../core/services/editor-facade.service';
+import { RecentModalService } from '../../core/services/recent-modal.service';
+import { TableCreateModalService } from '../../core/services/table-create-modal.service';
 import { ToastService } from '../../core/services/toast.service';
 
 @Component({
@@ -78,7 +79,7 @@ import { ToastService } from '../../core/services/toast.service';
         </svg>
       </button>
 
-      <button class="tbtn" id="t-table" title="Table" type="button" disabled>
+      <button class="tbtn" id="t-table" title="Table" type="button" (click)="onTableClick()">
         <svg width="13" height="13" viewBox="0 0 13 13">
           <rect x="1" y="1" width="11" height="11" rx="1" stroke="currentColor" stroke-width="1.2" fill="none" />
           <line x1="4" y1="1" x2="4" y2="12" stroke="currentColor" stroke-width="1" />
@@ -404,7 +405,8 @@ import { ToastService } from '../../core/services/toast.service';
 })
 export class ToolbarComponent {
   private readonly editorFacade = inject(EditorFacadeService);
-  private readonly router = inject(Router);
+  private readonly recentModalService = inject(RecentModalService);
+  private readonly tableCreateModalService = inject(TableCreateModalService);
   private readonly toast = inject(ToastService);
 
   readonly isSaving$ = this.editorFacade.isSaving$;
@@ -449,7 +451,11 @@ export class ToolbarComponent {
   }
 
   onLogoClick(): void {
-    this.router.navigate(['/projects']);
+    this.recentModalService.open();
+  }
+
+  onTableClick(): void {
+    this.tableCreateModalService.show();
   }
 
   onRect(): void {
