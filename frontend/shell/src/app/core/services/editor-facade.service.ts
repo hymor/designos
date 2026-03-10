@@ -37,6 +37,8 @@ export interface EditorDocument {
   view?: { zoom: number; px: number; py: number };
 }
 
+export type EditorToolId = 'select' | 'frame' | 'rect' | 'ellipse' | 'line' | 'text' | 'table' | 'image' | 'eyedropper' | 'pen' | 'hand';
+
 export interface EditorBridgeApi {
   init(canvas: HTMLElement | HTMLCanvasElement | null): void;
   addRectangle(): void;
@@ -98,6 +100,9 @@ export class EditorFacadeService {
   private readonly lastSaveErrorSubject = new BehaviorSubject<string | null>(null);
   readonly lastSaveError$: Observable<string | null> = this.lastSaveErrorSubject.asObservable();
 
+  private readonly activeToolSubject = new BehaviorSubject<EditorToolId>('select');
+  readonly activeTool$: Observable<EditorToolId> = this.activeToolSubject.asObservable();
+
   /** Bridge created by init() via bootstrapLegacyEditor(canvas); primary source. */
   private bridgeInstance: EditorBridgeApi | null = null;
 
@@ -122,6 +127,25 @@ export class EditorFacadeService {
   /** Store the bridge (e.g. for tests). init() creates bridge via bootstrapLegacyEditor when needed. */
   setBridge(bridge: EditorBridgeApi | null): void {
     this.bridgeInstance = bridge;
+  }
+
+  getActiveTool(): EditorToolId {
+    return this.activeToolSubject.value;
+  }
+
+  setActiveTool(tool: EditorToolId): void {
+    this.activeToolSubject.next(tool);
+    const win: any = typeof window !== 'undefined' ? window : null;
+    const setToolFn = win && typeof win.setTool === 'function' ? win.setTool : null;
+    if (!setToolFn) {
+      console.warn('[EditorFacade] Tool change not wired to engine yet:', tool);
+      return;
+    }
+    try {
+      setToolFn(tool);
+    } catch (e) {
+      console.warn('[EditorFacade] setTool failed for', tool, e);
+    }
   }
 
   /** Returns true if a bridge (instance or window fallback) is available and callable. */
