@@ -1,4 +1,6 @@
-import { Component } from '@angular/core';
+import { AsyncPipe } from '@angular/common';
+import { Component, inject } from '@angular/core';
+import { combineLatest, map, startWith } from 'rxjs';
 import { EditorFacadeService, type EditorDocument } from '../../core/services/editor-facade.service';
 
 /** Demo document for Load Doc (dev); legacy format (id, type, x, y, w, h + fill for render). */
@@ -21,9 +23,11 @@ const DEMO_DOC: EditorDocument = {
 @Component({
   selector: 'app-toolbar',
   standalone: true,
+  imports: [AsyncPipe],
   template: `
     <div class="toolbar">
       <span class="bridge-status" [class.unavailable]="!bridgeAvailable">Bridge: {{ bridgeAvailable ? 'available' : 'unavailable' }}</span>
+      <span class="save-status" [class.error]="(saveStatus$ | async) === 'Save failed'">{{ saveStatus$ | async }}</span>
       <button type="button" (click)="onRect()">Rect</button>
       <button type="button" (click)="onZoomIn()">Zoom +</button>
       <button type="button" (click)="onUndo()" title="Undo">Undo</button>
@@ -57,6 +61,21 @@ const DEMO_DOC: EditorDocument = {
       .bridge-status.unavailable {
         color: #c00;
       }
+      .save-status {
+        font-size: 0.75rem;
+        color: #666;
+        margin-right: 0.75rem;
+        padding: 0.1rem 0.35rem;
+        border: 1px solid #e0e0e0;
+        border-radius: 999px;
+        background: #fafafa;
+        user-select: none;
+      }
+      .save-status.error {
+        color: #c00;
+        border-color: rgba(204, 0, 0, 0.25);
+        background: rgba(204, 0, 0, 0.04);
+      }
     `,
   ],
 })
@@ -64,7 +83,22 @@ export class ToolbarComponent {
   /** Last document saved via Save Doc; Load Doc uses this when set. */
   private lastSavedDoc: EditorDocument | null = null;
 
-  constructor(private readonly editorFacade: EditorFacadeService) {}
+  private readonly editorFacade = inject(EditorFacadeService);
+
+  readonly saveStatus$ = combineLatest([
+    this.editorFacade.isSaving$,
+    this.editorFacade.hasUnsavedChanges$,
+    this.editorFacade.lastSaveSuccess$,
+  ]).pipe(
+    map(([isSaving, dirty, lastOk]) => {
+      if (isSaving) return 'Saving...';
+      if (lastOk === false) return 'Save failed';
+      if (dirty) return 'Unsaved changes';
+      if (lastOk === true) return 'Saved';
+      return 'Saved';
+    }),
+    startWith('Saved'),
+  );
 
   get bridgeAvailable(): boolean {
     return this.editorFacade.isBridgeAvailable();

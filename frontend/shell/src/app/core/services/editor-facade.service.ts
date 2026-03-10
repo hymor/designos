@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, of, switchMap, throwError } from 'rxjs';
+import { catchError, finalize, tap } from 'rxjs/operators';
 import { bootstrapLegacyEditor } from '@designos/bootstrap-legacy-editor';
 import { EditorApiService } from './editor-api.service';
 
@@ -78,6 +79,18 @@ export class EditorFacadeService {
 
   private readonly sceneItemsSubject = new BehaviorSubject<EditorSceneItem[]>([]);
   readonly sceneItems$: Observable<EditorSceneItem[]> = this.sceneItemsSubject.asObservable();
+
+  private readonly hasUnsavedChangesSubject = new BehaviorSubject<boolean>(false);
+  readonly hasUnsavedChanges$: Observable<boolean> = this.hasUnsavedChangesSubject.asObservable();
+
+  private readonly isSavingSubject = new BehaviorSubject<boolean>(false);
+  readonly isSaving$: Observable<boolean> = this.isSavingSubject.asObservable();
+
+  private readonly lastSaveSuccessSubject = new BehaviorSubject<boolean | null>(null);
+  readonly lastSaveSuccess$: Observable<boolean | null> = this.lastSaveSuccessSubject.asObservable();
+
+  private readonly lastSaveErrorSubject = new BehaviorSubject<string | null>(null);
+  readonly lastSaveError$: Observable<string | null> = this.lastSaveErrorSubject.asObservable();
 
   /** Bridge created by init() via bootstrapLegacyEditor(canvas); primary source. */
   private bridgeInstance: EditorBridgeApi | null = null;
@@ -206,6 +219,17 @@ export class EditorFacadeService {
     this.sceneItemsSubject.next(this.getSceneItems());
   }
 
+  private markDirty(): void {
+    this.hasUnsavedChangesSubject.next(true);
+    // any new change invalidates "saved" state
+    if (this.lastSaveSuccessSubject.value !== null) this.lastSaveSuccessSubject.next(null);
+    if (this.lastSaveErrorSubject.value !== null) this.lastSaveErrorSubject.next(null);
+  }
+
+  private markClean(): void {
+    this.hasUnsavedChangesSubject.next(false);
+  }
+
   /** Safe addRectangle: no-op and warn if bridge unavailable. */
   addRectangle(): void {
     if (!this.isBridgeAvailable()) {
@@ -215,6 +239,7 @@ export class EditorFacadeService {
     try {
       this.bridge!.addRectangle();
       this.refreshSceneItems();
+      this.markDirty();
     } catch (e) {
       console.warn('[EditorFacade] addRectangle failed:', e);
     }
@@ -254,6 +279,7 @@ export class EditorFacadeService {
     try {
       this.bridge!.deleteSelected();
       this.refreshSceneItems();
+      this.markDirty();
     } catch (e) {
       console.warn('[EditorFacade] deleteSelected failed:', e);
     }
@@ -306,6 +332,8 @@ export class EditorFacadeService {
     try {
       this.bridge!.updatePosition?.(id, x, y);
       this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
+      this.markDirty();
     } catch (e) {
       console.warn('[EditorFacade] updatePosition failed:', e);
     }
@@ -320,6 +348,8 @@ export class EditorFacadeService {
     try {
       this.bridge!.updateSize?.(id, width, height);
       this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
+      this.markDirty();
     } catch (e) {
       console.warn('[EditorFacade] updateSize failed:', e);
     }
@@ -346,6 +376,10 @@ export class EditorFacadeService {
       this.bridge!.loadDocument?.(doc);
       this.selectionSubject.next(this.getSelection());
       this.refreshSceneItems();
+      // New document becomes the baseline (clean) until user changes something.
+      this.markClean();
+      this.lastSaveSuccessSubject.next(null);
+      this.lastSaveErrorSubject.next(null);
     } catch (e) {
       console.warn('[EditorFacade] loadDocument failed:', e);
     }
@@ -361,6 +395,7 @@ export class EditorFacadeService {
       this.bridge!.undo?.();
       this.selectionSubject.next(this.getSelection());
       this.refreshSceneItems();
+      this.markDirty();
     } catch (e) {
       console.warn('[EditorFacade] undo failed:', e);
     }
@@ -376,6 +411,7 @@ export class EditorFacadeService {
       this.bridge!.redo?.();
       this.selectionSubject.next(this.getSelection());
       this.refreshSceneItems();
+      this.markDirty();
     } catch (e) {
       console.warn('[EditorFacade] redo failed:', e);
     }
@@ -387,7 +423,26 @@ export class EditorFacadeService {
     if (doc == null) {
       return throwError(() => new Error('No document to save'));
     }
-    return this.editorApi.saveDocument(projectId, doc);
+    this.isSavingSubject.next(true);
+    this.lastSaveSuccessSubject.next(null);
+    this.lastSaveErrorSubject.next(null);
+    return this.editorApi.saveDocument(projectId, doc).pipe(
+      tap(() => {
+        this.markClean();
+        this.lastSaveSuccessSubject.next(true);
+        this.lastSaveErrorSubject.next(null);
+      }),
+      catchError((err) => {
+        const msg =
+          (err && typeof err === 'object' && 'message' in err && typeof (err as any).message === 'string'
+            ? (err as any).message
+            : String(err)) || 'Save failed';
+        this.lastSaveSuccessSubject.next(false);
+        this.lastSaveErrorSubject.next(msg);
+        return throwError(() => err);
+      }),
+      finalize(() => this.isSavingSubject.next(false)),
+    );
   }
 
   /** Load document from server and apply to editor. */

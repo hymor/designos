@@ -7,7 +7,7 @@ import {
   PLATFORM_BROWSER_ID,
   getDOM,
   setRootDomAdapter
-} from "./chunk-KTUU6ARE.js";
+} from "./chunk-DIEF43WA.js";
 import {
   XhrFactory,
   parseCookieValue
@@ -2033,4 +2033,4 @@ export {
    * License: MIT
    *)
 */
-//# sourceMappingURL=chunk-XKNG5LIP.js.map
+//# sourceMappingURL=chunk-EKW5J4XE.js.map
