@@ -3,9 +3,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "npm --prefix frontend/shell run start",
+    "build": "npm --prefix frontend/shell run build",
+    "preview": "npm --prefix frontend/shell run build",
+    "legacy:dev": "vite",
+    "legacy:build": "vite build",
+    "legacy:preview": "vite preview",
+    "backend:dev": "npm --prefix backend run start:dev"
   },
   "devDependencies": {
     "vite": "^5.4.0",
