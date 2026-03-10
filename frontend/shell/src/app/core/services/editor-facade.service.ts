@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, of, switchMap, throwError } from 'rxjs';
-import { catchError, finalize, tap } from 'rxjs/operators';
+import { BehaviorSubject, Observable, of, switchMap, throwError, combineLatest } from 'rxjs';
+import { catchError, debounceTime, filter, finalize, tap } from 'rxjs/operators';
 import { bootstrapLegacyEditor } from '@designos/bootstrap-legacy-editor';
 import { EditorApiService } from './editor-api.service';
 
@@ -152,7 +152,27 @@ export class EditorFacadeService {
   /** Bridge created by init() via bootstrapLegacyEditor(canvas); primary source. */
   private bridgeInstance: EditorBridgeApi | null = null;
 
-  constructor(private readonly editorApi: EditorApiService) {}
+  constructor(private readonly editorApi: EditorApiService) {
+    this.startAutosave();
+  }
+
+  /** Autosave: when dirty and bridge ready, debounce 5s then save to server. */
+  private startAutosave(): void {
+    combineLatest([this.hasUnsavedChanges$, this.bridgeReady$]).pipe(
+      filter(([dirty, ready]) => !!ready && !!dirty),
+      debounceTime(5000),
+      switchMap(() =>
+        this.saveToServer(this.getActiveProjectId()).pipe(
+          catchError((err) => {
+            if (typeof console !== 'undefined' && console.warn) {
+              console.warn('[EditorFacade] Autosave failed:', err);
+            }
+            return of(null);
+          }),
+        ),
+      ),
+    ).subscribe();
+  }
 
   setActiveProjectId(projectId: string): void {
     const id = (projectId || '').trim() || 'default';
@@ -345,6 +365,7 @@ export class EditorFacadeService {
         this.eyedropperBadgeSubject.next(payload as EyedropperBadgeState),
       );
       this.bridge.on?.('eyedropperBadgeHide', () => this.eyedropperBadgeSubject.next(null));
+      this.bridge.on?.('documentChanged', () => this.markDirty());
     } catch (e) {
       console.warn('[EditorFacade] init failed:', e);
     }

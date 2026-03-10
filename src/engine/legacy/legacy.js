@@ -93,7 +93,7 @@ function applyHistSnap(idx){
   refreshLayers(); refreshProps(); refreshCompPanel();
 }
 var _undoApi=createUndo(S,dom,{applyHistSnap,toast});
-function snapshot(){_undoApi.snapshot();scheduleAutoSave();}
+function snapshot(){_undoApi.snapshot();if(window.__designosAPI&&typeof window.__designosAPI.onDocumentChange==='function'){window.__designosAPI.onDocumentChange();return;}scheduleAutoSave();}
 var refreshUndoUI=_undoApi.refreshUndoUI,undo=_undoApi.undo,redo=_undoApi.redo;
 
 // ── SMART GUIDES ──

@@ -47,6 +47,7 @@ class EditorBridge {
     const api = typeof window !== 'undefined' ? window.__designosAPI : null;
     if (api) {
       api.onSelectionChange = () => this._emitSelectionChange();
+      api.onDocumentChange = () => this.emit('documentChanged');
     }
   }
 
