@@ -461,6 +461,23 @@ export class EditorFacadeService {
     }
   }
 
+  /** Add image to canvas from data URL (center of viewport). Legacy addImageFromDataUrl. */
+  addImageFromDataUrl(dataUrl: string): void {
+    const api = this.designosAPI;
+    if (!api || typeof api.addImageFromDataUrl !== 'function') {
+      console.warn('[EditorFacade] addImageFromDataUrl not available.');
+      return;
+    }
+    try {
+      api.addImageFromDataUrl(dataUrl);
+      this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
+      this.markDirty();
+    } catch (e) {
+      console.warn('[EditorFacade] addImageFromDataUrl failed:', e);
+    }
+  }
+
   /** Safe getSelection: returns empty selection if bridge unavailable. */
   getSelection(): EditorSelection {
     if (!this.isBridgeAvailable()) {

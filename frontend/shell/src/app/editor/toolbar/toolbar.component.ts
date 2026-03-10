@@ -657,8 +657,13 @@ export class ToolbarComponent implements AfterViewInit, OnDestroy {
   onImageFileSelected(input: HTMLInputElement): void {
     const file = input.files?.[0];
     if (!file) return;
-    // Legacy attaches to #img-input change and adds image to canvas.
-    input.value = '';
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      if (dataUrl) this.editorFacade.addImageFromDataUrl(dataUrl);
+      input.value = '';
+    };
+    reader.readAsDataURL(file);
   }
 
   onProjFocus(input: HTMLInputElement): void {
