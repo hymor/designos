@@ -1,9 +1,9 @@
 import { Component } from '@angular/core';
-import { EditorShellComponent } from './editor/editor-shell/editor-shell.component';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
-  imports: [EditorShellComponent],
+  imports: [RouterOutlet],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })

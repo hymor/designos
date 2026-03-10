@@ -80,6 +80,9 @@ export class EditorFacadeService {
   private readonly sceneItemsSubject = new BehaviorSubject<EditorSceneItem[]>([]);
   readonly sceneItems$: Observable<EditorSceneItem[]> = this.sceneItemsSubject.asObservable();
 
+  private readonly bridgeReadySubject = new BehaviorSubject<boolean>(false);
+  readonly bridgeReady$: Observable<boolean> = this.bridgeReadySubject.asObservable();
+
   private readonly hasUnsavedChangesSubject = new BehaviorSubject<boolean>(false);
   readonly hasUnsavedChanges$: Observable<boolean> = this.hasUnsavedChangesSubject.asObservable();
 
@@ -140,6 +143,7 @@ export class EditorFacadeService {
     if (!this.bridge) return;
     try {
       this.bridge.init(canvas ?? null);
+      this.bridgeReadySubject.next(true);
       // Sync selection state and subscribe: legacy calls __designosAPI.onSelectionChange → bridge emits 'selectionChanged'
       this.selectionSubject.next(this.getSelection());
       this.refreshSceneItems();
