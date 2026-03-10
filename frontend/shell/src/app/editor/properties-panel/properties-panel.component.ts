@@ -277,6 +277,7 @@ import {
         align-items: center;
         gap: 6px;
         margin-bottom: 7px;
+        min-width: 0;
       }
       .pr:last-child {
         margin-bottom: 0;
@@ -288,6 +289,9 @@ import {
       }
       .pi {
         flex: 1;
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
         background: var(--surface2);
         border: 1px solid var(--border);
         border-radius: 5px;
@@ -296,7 +300,6 @@ import {
         padding: 4px 7px;
         outline: none;
         font-family: monospace;
-        min-width: 0;
         box-sizing: border-box;
       }
       .pi:focus {
@@ -307,8 +310,9 @@ import {
       }
       .g2 {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         gap: 6px;
+        min-width: 0;
       }
       .g2-lbl {
         font-size: 10px;
@@ -393,6 +397,13 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
     return t === 'rect' || t === 'frame';
   }
 
+  /** Округление до 1 знака после запятой, доли после второго знака — в большую сторону (для отображения X,Y,W,H). */
+  private static roundUpTo1Decimal(value: number): number {
+    if (!Number.isFinite(value)) return value;
+    const r = Math.ceil(value * 10) / 10;
+    return Number(r.toFixed(1));
+  }
+
   ngOnInit(): void {
     this.editorFacade.selection$
       .pipe(takeUntil(this.destroy$))
@@ -401,16 +412,18 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
         this.props = id ? this.editorFacade.getElementProperties(id) : null;
         this.selectionCount = selection.ids?.length ?? 0;
         if (this.props) {
-          this.editX = this.props.x;
-          this.editY = this.props.y;
-          this.editW = this.props.width;
-          this.editH = this.props.height;
+          this.editX = PropertiesPanelComponent.roundUpTo1Decimal(this.props.x);
+          this.editY = PropertiesPanelComponent.roundUpTo1Decimal(this.props.y);
+          this.editW = PropertiesPanelComponent.roundUpTo1Decimal(this.props.width);
+          this.editH = PropertiesPanelComponent.roundUpTo1Decimal(this.props.height);
           this.editOpacityPct =
             this.props.opacity != null
               ? Math.round(this.props.opacity * 100)
               : 100;
           this.editRadius =
-            this.props.rx != null ? this.props.rx : 0;
+            this.props.rx != null
+              ? PropertiesPanelComponent.roundUpTo1Decimal(this.props.rx)
+              : 0;
           this.editFillHex =
             this.props.fill && this.props.fill !== 'none'
               ? this.props.fill
@@ -420,22 +433,24 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
               ? this.props.stroke
               : '#ffffff';
           this.editStrokeWidth =
-            this.props.strokeWidth != null ? this.props.strokeWidth : 0;
+            this.props.strokeWidth != null
+              ? PropertiesPanelComponent.roundUpTo1Decimal(this.props.strokeWidth)
+              : 0;
         }
         this.cdr.markForCheck();
       });
   }
 
   onPositionBlur(id: string): void {
-    const x = Number(this.editX);
-    const y = Number(this.editY);
+    const x = PropertiesPanelComponent.roundUpTo1Decimal(Number(this.editX));
+    const y = PropertiesPanelComponent.roundUpTo1Decimal(Number(this.editY));
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
     this.editorFacade.updatePosition(id, x, y);
   }
 
   onSizeBlur(id: string): void {
-    const w = Number(this.editW);
-    const h = Number(this.editH);
+    const w = PropertiesPanelComponent.roundUpTo1Decimal(Number(this.editW));
+    const h = PropertiesPanelComponent.roundUpTo1Decimal(Number(this.editH));
     if (!Number.isFinite(w) || !Number.isFinite(h) || w < 0 || h < 0) return;
     this.editorFacade.updateSize(id, w, h);
   }

@@ -137,6 +137,13 @@ function buildHostFromContainer(container: HTMLElement): EditorHostContext {
     d.style.display = 'none';
     d.style.position = 'absolute';
     d.style.pointerEvents = 'none';
+    d.style.left = '0';
+    d.style.top = '0';
+    d.style.width = '0';
+    d.style.height = '0';
+    d.style.border = '1.5px solid #7b61ff';
+    d.style.background = 'rgba(123,97,255,0.07)';
+    d.style.zIndex = '10';
     container.appendChild(d);
     return d;
   })();

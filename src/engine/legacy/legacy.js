@@ -3027,7 +3027,7 @@ function attachCanvasListeners(){
     var t=e.target;
     var svgRoot=document.getElementById('svg');
     var clickOnEmpty=(t===dom.canvas)||(t===svgRoot);
-    if(clickOnEmpty){
+    if(clickOnEmpty&&dom.bandRect){
       S.bandAdd=(e.shiftKey||e.ctrlKey||e.metaKey);
       if(!S.bandAdd)clearSel();
       S.bandSel=true;
@@ -3770,6 +3770,7 @@ function attachCanvasListeners(){
   }
 if(S.bandSel){
   S.bandSel=false;
+  if(!dom.bandRect){ return; }
   var br=dom.bandRect.getBoundingClientRect(), cr=dom.canvas.getBoundingClientRect();
   dom.bandRect.style.display='none';
   if(br.width<=4 || br.height<=4) return;
@@ -3822,6 +3823,7 @@ if(S.bandSel){
     }
     S.selId=S.selIds[S.selIds.length-1];
     drawSel(); refreshProps(); refreshLayers(); snapshot();
+    if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
   }
   return;
 }
