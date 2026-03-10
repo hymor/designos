@@ -60,18 +60,24 @@ import { ComponentsPanelComponent } from '../components-panel/components-panel.c
         --text2: #888890;
         --text3: #4a4a52;
         --accent: #7b61ff;
+
+        display: block;
+        width: var(--panel);
+        min-width: var(--panel);
+        flex-shrink: 0;
+        height: 100%;
+        background: var(--surface);
       }
 
       #left-panel {
-        width: var(--panel);
-        min-width: var(--panel);
+        width: 100%;
+        height: 100%;
         background: var(--surface);
         border-right: 1px solid var(--border);
         display: flex;
         flex-direction: column;
         padding-top: 8px;
         box-sizing: border-box;
-        flex-shrink: 0;
         min-height: 0;
       }
 

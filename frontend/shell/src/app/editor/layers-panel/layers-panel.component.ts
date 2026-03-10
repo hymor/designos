@@ -103,6 +103,8 @@ import { EditorFacadeService, type LayerItem } from '../../core/services/editor-
         font-size: 0.8125rem;
         color: var(--text2, #888890);
         background: transparent;
+        box-sizing: border-box;
+        border: 1px solid transparent;
       }
       .layer-row:hover {
         background: var(--surface3, #2c2c30);
@@ -110,12 +112,12 @@ import { EditorFacadeService, type LayerItem } from '../../core/services/editor-
       }
       .layer-row.active {
         background: rgba(123, 97, 255, 0.13);
-        border: 1px solid var(--accent, #7b61ff);
+        border-color: var(--accent, #7b61ff);
         color: var(--text, #e8e8ea);
       }
       .layer-row.multi:not(.active) {
         background: rgba(123, 97, 255, 0.08);
-        border: 1px solid var(--border, #333338);
+        border-color: var(--border, #333338);
       }
       .layer-fold,
       .layer-fold-placeholder {
@@ -164,9 +166,15 @@ import { EditorFacadeService, type LayerItem } from '../../core/services/editor-
         background: transparent;
         color: var(--text3);
         cursor: pointer;
-        padding: 0 2px;
+        width: 22px;
+        min-width: 22px;
+        flex-shrink: 0;
+        padding: 0;
         font-size: 12px;
         line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
       }
       .layer-btn:hover {
         color: var(--text);
@@ -177,6 +185,12 @@ import { EditorFacadeService, type LayerItem } from '../../core/services/editor-
       .layer-visibility {
         font-size: 12px;
         opacity: 0.6;
+        width: 22px;
+        min-width: 22px;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
       }
     `,
   ],

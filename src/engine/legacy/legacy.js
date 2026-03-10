@@ -4451,6 +4451,7 @@ function pasteItems(){
   });
   S.selIds=nids;S.selId=nids[nids.length-1];drawSel();refreshLayers();refreshProps();snapshot();
   toast('Pasted '+nids.length+' item'+(nids.length>1?'s':''));
+  if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
 }
 function pasteItemsAtCenter(){
   if(!S.clipboard.length){toast('Clipboard empty');return;}
@@ -4484,6 +4485,7 @@ function pasteItemsAtCenter(){
   });
   S.selIds=nids;S.selId=nids[nids.length-1];drawSel();refreshLayers();refreshProps();snapshot();
   toast('Pasted '+nids.length+' item'+(nids.length>1?'s':''));
+  if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
 }
 var copyBtn=document.getElementById('copy-btn');if(copyBtn)copyBtn.addEventListener('click',copyItems);
 var cutBtn=document.getElementById('cut-btn');if(cutBtn)cutBtn.addEventListener('click',cutItems);
@@ -6172,4 +6174,19 @@ if (typeof window !== 'undefined') {
     exportSelectedAsPng: exportSelectedAsPng,
     addImageFromDataUrl: addImageFromDataUrl
   };
+  try {
+    window.__designosAPI.copyItems = copyItems;
+    window.__designosAPI.pasteItems = pasteItems;
+    window.__designosAPI.pasteItemsAtCenter = pasteItemsAtCenter;
+    window.__designosAPI.cutItems = cutItems;
+    window.__designosAPI.duplicateSelection = function(){ copyItems(); pasteItems(); };
+    window.copyItems = copyItems;
+    window.pasteItems = pasteItems;
+    window.pasteItemsAtCenter = pasteItemsAtCenter;
+    window.cutItems = cutItems;
+    window.groupSel = groupSel;
+    window.ungroupSel = ungroupSel;
+  } catch (err) {
+    if (typeof console !== 'undefined' && console.warn) console.warn('[legacy] clipboard/group API not in scope:', err);
+  }
 }

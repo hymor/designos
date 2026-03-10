@@ -28,6 +28,9 @@ import { EditorFacadeService } from '../../core/services/editor-facade.service';
           <button type="button" class="obj-ctx-item" [disabled]="!canPaste()" (click)="onPaste()">
             Paste
           </button>
+          <button type="button" class="obj-ctx-item" (click)="onDuplicate()">
+            Duplicate
+          </button>
           <button
             type="button"
             class="obj-ctx-item"
@@ -114,9 +117,8 @@ export class ContextMenuComponent {
   readonly y = computed(() => this.ySignal());
   readonly kind = computed(() => this.kindSignal());
   readonly canPaste = computed(() => {
-    // For now rely on legacy clipboard state via global S.clipboard if present.
-    const win = window as any;
-    const S = win && win.S;
+    const api = (window as any).__designosAPI;
+    const S = api?.S ?? (window as any).S;
     return !!(S && Array.isArray(S.clipboard) && S.clipboard.length);
   });
   readonly canDelete = computed(() => {
@@ -165,6 +167,8 @@ export class ContextMenuComponent {
     const win = window as any;
     if (typeof win.copyItems === 'function') {
       win.copyItems();
+    } else if (win.__designosAPI?.copyItems) {
+      win.__designosAPI.copyItems();
     }
     this.close();
   }
@@ -173,6 +177,8 @@ export class ContextMenuComponent {
     const win = window as any;
     if (typeof win.pasteItems === 'function') {
       win.pasteItems();
+    } else if (win.__designosAPI?.pasteItems) {
+      win.__designosAPI.pasteItems();
     }
     this.close();
   }
@@ -181,7 +187,24 @@ export class ContextMenuComponent {
     const win = window as any;
     if (typeof win.pasteItemsAtCenter === 'function') {
       win.pasteItemsAtCenter();
+    } else if (win.__designosAPI?.pasteItemsAtCenter) {
+      win.__designosAPI.pasteItemsAtCenter();
     } else if (typeof win.pasteItems === 'function') {
+      win.pasteItems();
+    } else if (win.__designosAPI?.pasteItems) {
+      win.__designosAPI.pasteItems();
+    }
+    this.close();
+  }
+
+  onDuplicate(): void {
+    const win = window as any;
+    if (typeof win.duplicateSelection === 'function') {
+      win.duplicateSelection();
+    } else if (win.__designosAPI?.duplicateSelection) {
+      win.__designosAPI.duplicateSelection();
+    } else if (typeof win.copyItems === 'function' && typeof win.pasteItems === 'function') {
+      win.copyItems();
       win.pasteItems();
     }
     this.close();

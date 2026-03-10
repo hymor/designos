@@ -220,6 +220,14 @@ import {
   `,
   styles: [
     `
+      :host {
+        display: block;
+        width: 260px;
+        min-width: 260px;
+        flex-shrink: 0;
+        height: 100%;
+        background: #1c1c1e;
+      }
       .properties-panel {
         --surface: #1c1c1e;
         --surface2: #242428;
@@ -232,13 +240,15 @@ import {
 
         padding: 8px 0;
         border-left: 1px solid var(--border);
-        min-width: 220px;
-        max-width: 260px;
+        width: 100%;
+        min-width: 0;
         background: var(--surface);
         color: var(--text);
         display: flex;
         flex-direction: column;
         min-height: 0;
+        height: 100%;
+        overflow-y: auto;
         box-sizing: border-box;
       }
       .no-selection {
