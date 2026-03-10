@@ -1,6 +1,8 @@
 import { AsyncPipe, NgClass } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, inject } from '@angular/core';
 import { combineLatest, map, of, startWith } from 'rxjs';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { EditorFacadeService, EditorToolId } from '../../core/services/editor-facade.service';
 import { RecentModalService } from '../../core/services/recent-modal.service';
 import { TableCreateModalService } from '../../core/services/table-create-modal.service';
@@ -33,6 +35,7 @@ import { ToastService } from '../../core/services/toast.service';
         style="display:none"
         (change)="onProjectFileSelected(projFile)"
       />
+
       <input
         #imgFile
         id="img-input"
@@ -285,8 +288,17 @@ import { ToastService } from '../../core/services/toast.service';
         >
           📂 Open
         </button>
+        <button
+          class="hbtn"
+          [class.dim]="!(bridgeAvailable$ | async)"
+          type="button"
+          title="Import .designos or .json file"
+          (click)="projFile.click()"
+        >
+          📁 Import
+        </button>
 
-        <button class="exp-btn" id="exp-btn" type="button" (click)="onExportPlaceholder()">↓ Export</button>
+        <button class="exp-btn" id="exp-btn" type="button" (click)="onExport()">↓ Export</button>
       </div>
     </div>
   `,
@@ -483,7 +495,7 @@ import { ToastService } from '../../core/services/toast.service';
     `,
   ],
 })
-export class ToolbarComponent {
+export class ToolbarComponent implements AfterViewInit, OnDestroy {
   private readonly editorFacade = inject(EditorFacadeService);
   private readonly recentModalService = inject(RecentModalService);
   private readonly tableCreateModalService = inject(TableCreateModalService);
@@ -530,6 +542,23 @@ export class ToolbarComponent {
 
   get bridgeAvailable(): boolean {
     return this.editorFacade.isBridgeAvailable();
+  }
+
+  @ViewChild('projName') projNameRef?: ElementRef<HTMLInputElement>;
+  private readonly destroy$ = new Subject<void>();
+
+  ngAfterViewInit(): void {
+    this.editorFacade.projectName$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((name) => {
+        const input = this.projNameRef?.nativeElement;
+        if (input && document.activeElement !== input) input.value = name || 'Untitled';
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   onSelectTool(): void {
@@ -613,23 +642,23 @@ export class ToolbarComponent {
     });
   }
 
+  onExport(): void {
+    this.editorFacade.exportSelected();
+  }
+
   onProjectFileSelected(input: HTMLInputElement): void {
     const file = input.files?.[0];
     if (!file) return;
-    console.log('[Toolbar] Project file selected (placeholder):', file.name);
+    // Legacy attaches to #proj-input change and calls loadProject(); sync project name after it runs.
+    setTimeout(() => this.editorFacade.syncProjectNameFromEngine(), 150);
     input.value = '';
   }
 
   onImageFileSelected(input: HTMLInputElement): void {
     const file = input.files?.[0];
     if (!file) return;
-    console.log('[Toolbar] Image file selected (placeholder):', file.name);
+    // Legacy attaches to #img-input change and adds image to canvas.
     input.value = '';
-  }
-
-  onExportPlaceholder(): void {
-    console.log('[Toolbar] Export is not implemented in Angular UI yet.');
-    this.toast.show('Export is not implemented yet', 'info');
   }
 
   onProjFocus(input: HTMLInputElement): void {
@@ -642,12 +671,7 @@ export class ToolbarComponent {
     input.style.borderBottomColor = 'transparent';
     input.style.color = 'var(--text2)';
     input.style.cursor = 'pointer';
-    const win = window as any;
-    if (typeof win.renameProject === 'function') {
-      win.renameProject(input.value);
-    } else {
-      console.warn('[Toolbar] Project rename not implemented yet (renameProject missing).');
-    }
+    this.editorFacade.renameProject(input.value);
   }
 
   onProjEnter(input: HTMLInputElement, ev: Event): void {

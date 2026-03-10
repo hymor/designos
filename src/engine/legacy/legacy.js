@@ -5802,13 +5802,12 @@ function updateExpBtn(){
   else{btn.style.opacity='0.35';btn.style.pointerEvents='none';btn.title='Select objects to export';}
 }
 
-var expBtn=document.getElementById('exp-btn');if(expBtn)expBtn.addEventListener('click',function(){
+function exportSelectedAsPng(){
   var ids=S.selIds.length?S.selIds:(S.selId?[S.selId]:[]);
   if(!ids.length){toast('Select objects to export');return;}
   var items=ids.map(findAny).filter(Boolean);
   if(!items.length)return;
   var dc=dom.defsEl.innerHTML;
-
   function exportOne(item,idx){
     var isFr=S.frames.indexOf(item)>=0;
     var isGr=item.type==='group';
@@ -5816,19 +5815,16 @@ var expBtn=document.getElementById('exp-btn');if(expBtn)expBtn.addEventListener(
     var domEl=document.getElementById(domId);
     var next=function(){if(idx+1<items.length)setTimeout(function(){exportOne(items[idx+1],idx+1);},250);};
     if(!domEl){next();return;}
-
     var bb;
     if(isFr){bb={x:item.x,y:item.y,w:item.w,h:item.h};}
     else if(isGr){bb=getGroupBBox(item);}
     else{bb=getBBox(item);}
     if(!bb||bb.w<1||bb.h<1){next();return;}
-
     var w=Math.ceil(bb.w),h=Math.ceil(bb.h);
     var ss='<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"'
       +' width="'+w+'" height="'+h+'" viewBox="'+bb.x+' '+bb.y+' '+bb.w+' '+bb.h+'">'
       +'<defs>'+dc+'</defs>'
       +domEl.outerHTML+'</svg>';
-
     var name=(item.name||('export-'+(idx+1)))+'.png';
     var img=new Image();
     var blob=new Blob([ss],{type:'image/svg+xml'});
@@ -5845,7 +5841,9 @@ var expBtn=document.getElementById('exp-btn');if(expBtn)expBtn.addEventListener(
     img.src=url;
   }
   exportOne(items[0],0);
-});
+}
+
+var expBtn=document.getElementById('exp-btn');if(expBtn)expBtn.addEventListener('click',function(){ exportSelectedAsPng(); });
 
 // ── EYEDROPPER ──
 function activateEyedropper(){
@@ -6142,6 +6140,8 @@ if (typeof window !== 'undefined') {
     redo: redo,
     selectEl: selectEl,
     setTool: setTool,
+    getProjName: function(){ return S.projName||'Untitled'; },
+    renameProject: renameProject,
     getLayersItems: getLayersItems,
     renameLayer: renameLayer,
     setLayerLocked: setLayerLocked,
@@ -6152,6 +6152,7 @@ if (typeof window !== 'undefined') {
     updateItemOpacity: updateItemOpacity,
     updateItemRadius: updateItemRadius,
     createTableAtCenter: createTableAtCenter,
-    openSvgPasteChoice: null
+    openSvgPasteChoice: null,
+    exportSelectedAsPng: exportSelectedAsPng
   };
 }

@@ -114,6 +114,10 @@ export class EditorFacadeService {
   private readonly activeProjectIdSubject = new BehaviorSubject<string>('default');
   readonly activeProjectId$: Observable<string> = this.activeProjectIdSubject.asObservable();
 
+  /** Current project display name (from legacy/getDocument). Synced on load and rename. */
+  private readonly projectNameSubject = new BehaviorSubject<string>('Untitled');
+  readonly projectName$: Observable<string> = this.projectNameSubject.asObservable();
+
   private readonly hasUnsavedChangesSubject = new BehaviorSubject<boolean>(false);
   readonly hasUnsavedChanges$: Observable<boolean> = this.hasUnsavedChangesSubject.asObservable();
 
@@ -151,6 +155,38 @@ export class EditorFacadeService {
     return this.activeProjectIdSubject.value || 'default';
   }
 
+  /** Rename current project in engine (legacy) and sync projectName$. */
+  renameProject(name: string): void {
+    const trimmed = (name || '').trim() || 'Untitled';
+    const api = this.designosAPI;
+    if (api && typeof api.renameProject === 'function') {
+      try {
+        api.renameProject(trimmed);
+      } catch (e) {
+        console.warn('[EditorFacade] renameProject failed:', e);
+      }
+    }
+    this.projectNameSubject.next(trimmed);
+  }
+
+  /** Current project name from engine (e.g. after load). */
+  getProjectName(): string {
+    const api = this.designosAPI;
+    if (api && typeof api.getProjName === 'function') {
+      try {
+        return api.getProjName() || 'Untitled';
+      } catch (e) {
+        console.warn('[EditorFacade] getProjName failed:', e);
+      }
+    }
+    const doc = this.getDocument();
+    return (doc && (doc as any).projName) || 'Untitled';
+  }
+
+  /** Sync projectName$ from engine (e.g. after legacy import from file). */
+  syncProjectNameFromEngine(): void {
+    this.projectNameSubject.next(this.getProjectName());
+  }
 
   /** Bridge: instance first, then window.editorBridge as optional debug fallback. */
   private get bridge(): EditorBridgeApi | undefined {
@@ -411,6 +447,20 @@ export class EditorFacadeService {
     }
   }
 
+  /** Export selected objects as PNG (legacy exportSelectedAsPng). */
+  exportSelected(): void {
+    const api = this.designosAPI;
+    if (!api || typeof api.exportSelectedAsPng !== 'function') {
+      console.warn('[EditorFacade] exportSelectedAsPng not available.');
+      return;
+    }
+    try {
+      api.exportSelectedAsPng();
+    } catch (e) {
+      console.warn('[EditorFacade] exportSelected failed:', e);
+    }
+  }
+
   /** Safe getSelection: returns empty selection if bridge unavailable. */
   getSelection(): EditorSelection {
     if (!this.isBridgeAvailable()) {
@@ -579,6 +629,11 @@ export class EditorFacadeService {
       this.bridge!.loadDocument?.(doc);
       this.selectionSubject.next(this.getSelection());
       this.refreshSceneItems();
+      const name =
+        typeof doc === 'object' && doc && (doc as any).projName != null
+          ? String((doc as any).projName)
+          : this.getProjectName();
+      this.projectNameSubject.next(name || 'Untitled');
       // New document becomes the baseline (clean) until user changes something.
       this.markClean();
       this.lastSaveSuccessSubject.next(null);
