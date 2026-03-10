@@ -57,6 +57,14 @@ export interface EditorDocument {
 
 export type EditorToolId = 'select' | 'frame' | 'rect' | 'ellipse' | 'line' | 'text' | 'table' | 'image' | 'eyedropper' | 'pen' | 'hand';
 
+/** Payload for eyedropper badge (from legacy edBadgeUpdate). */
+export interface EyedropperBadgeState {
+  left: number;
+  top: number;
+  hex: string | null;
+  hint: string;
+}
+
 export interface EditorBridgeApi {
   init(canvas: HTMLElement | HTMLCanvasElement | null): void;
   addRectangle(): void;
@@ -72,7 +80,7 @@ export interface EditorBridgeApi {
   loadDocument?(doc: EditorDocument | string): void;
   undo?(): void;
   redo?(): void;
-  on?(eventName: string, callback: (payload: EditorSelection) => void): void;
+  on?(eventName: string, callback: (payload: unknown) => void): void;
 }
 
 declare global {
@@ -120,6 +128,11 @@ export class EditorFacadeService {
 
   private readonly activeToolSubject = new BehaviorSubject<EditorToolId>('select');
   readonly activeTool$: Observable<EditorToolId> = this.activeToolSubject.asObservable();
+
+  /** Eyedropper badge: payload when visible, null when hidden. Set by legacy via bridge events. */
+  private readonly eyedropperBadgeSubject = new BehaviorSubject<EyedropperBadgeState | null>(null);
+  readonly eyedropperBadge$: Observable<EyedropperBadgeState | null> =
+    this.eyedropperBadgeSubject.asObservable();
 
   private readonly layersListSubject = new BehaviorSubject<LayerItem[]>([]);
   readonly layersList$: Observable<LayerItem[]> = this.layersListSubject.asObservable();
@@ -279,11 +292,15 @@ export class EditorFacadeService {
       this.selectionSubject.next(this.getSelection());
       this.refreshSceneItems();
       const onSelectionChanged = (payload: EditorSelection) => this.selectionSubject.next(payload);
-      const onSelectionChangedWithScene = (payload: EditorSelection) => {
-        onSelectionChanged(payload);
+      const onSelectionChangedWithScene = (payload: unknown) => {
+        onSelectionChanged(payload as EditorSelection);
         this.refreshSceneItems();
       };
       this.bridge.on?.('selectionChanged', onSelectionChangedWithScene);
+      this.bridge.on?.('eyedropperBadge', (payload: unknown) =>
+        this.eyedropperBadgeSubject.next(payload as EyedropperBadgeState),
+      );
+      this.bridge.on?.('eyedropperBadgeHide', () => this.eyedropperBadgeSubject.next(null));
     } catch (e) {
       console.warn('[EditorFacade] init failed:', e);
     }

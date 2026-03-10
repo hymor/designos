@@ -4,12 +4,20 @@ import { ProjectTabsComponent } from '../project-tabs/project-tabs.component';
 import { CanvasHostComponent } from '../canvas-host/canvas-host.component';
 import { PropertiesPanelComponent } from '../properties-panel/properties-panel.component';
 import { LeftPanelComponent } from '../left-panel/left-panel.component';
+import { EyedropperBadgeComponent } from '../eyedropper-badge/eyedropper-badge.component';
 import { EditorFacadeService } from '../../core/services/editor-facade.service';
 
 @Component({
   selector: 'app-editor-shell',
   standalone: true,
-  imports: [ToolbarComponent, ProjectTabsComponent, CanvasHostComponent, PropertiesPanelComponent, LeftPanelComponent],
+  imports: [
+    ToolbarComponent,
+    ProjectTabsComponent,
+    CanvasHostComponent,
+    PropertiesPanelComponent,
+    LeftPanelComponent,
+    EyedropperBadgeComponent,
+  ],
   template: `
     <div class="editor-shell">
       <app-toolbar></app-toolbar>
@@ -21,6 +29,7 @@ import { EditorFacadeService } from '../../core/services/editor-facade.service';
         </div>
         <app-properties-panel></app-properties-panel>
       </div>
+      <app-eyedropper-badge></app-eyedropper-badge>
     </div>
   `,
   styles: [

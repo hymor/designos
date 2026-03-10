@@ -5894,7 +5894,16 @@ function rgbToHex(str){
   return null;
 }
 function edBadgeUpdate(e){
+  var api=typeof window!=='undefined'&&window.__designosAPI?window.__designosAPI:null;
+  if(api&&typeof api.eyedropperBadgeUpdate==='function'){
+    var color=edSampleAt(e.clientX,e.clientY);
+    var ids=S.selIds.length?S.selIds:(S.selId?[S.selId]:[]);
+    var hint=color?(ids.length?'Click to apply':'Click to sample'):'No color here';
+    api.eyedropperBadgeUpdate({left:e.clientX+18,top:e.clientY+18,hex:color||null,hint:hint});
+    return;
+  }
   var badge=document.getElementById('ed-badge');
+  if(!badge)return;
   var color=edSampleAt(e.clientX,e.clientY);
   badge.style.display='flex';
   badge.style.left=(e.clientX+18)+'px';
@@ -5914,6 +5923,11 @@ function edBadgeUpdate(e){
   }
 }
 function edBadgeHide(){
+  var api=typeof window!=='undefined'&&window.__designosAPI?window.__designosAPI:null;
+  if(api&&typeof api.eyedropperBadgeHide==='function'){
+    api.eyedropperBadgeHide();
+    return;
+  }
   var badge=document.getElementById('ed-badge');
   if(badge)badge.style.display='none';
 }

@@ -233,8 +233,12 @@ export function bootstrapLegacyEditor(
   }
   setHostContext(host);
   editorBridge.init(container ?? null);
-  const api = typeof window !== 'undefined' ? (window as unknown as { __designosAPI?: { runEditorInit?: () => void } }).__designosAPI : null;
+  const api = typeof window !== 'undefined' ? (window as unknown as { __designosAPI?: { runEditorInit?: () => void; eyedropperBadgeUpdate?: (p: unknown) => void; eyedropperBadgeHide?: () => void } }).__designosAPI : null;
   if (api?.runEditorInit) api.runEditorInit();
+  if (api && editorBridge) {
+    api.eyedropperBadgeUpdate = (payload: unknown) => editorBridge.emit('eyedropperBadge', payload);
+    api.eyedropperBadgeHide = () => editorBridge.emit('eyedropperBadgeHide', null);
+  }
   if (exposeOnWindow && typeof window !== 'undefined') {
     (window as unknown as { editorBridge: typeof editorBridge }).editorBridge = editorBridge;
   }
