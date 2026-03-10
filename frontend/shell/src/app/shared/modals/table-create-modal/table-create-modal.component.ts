@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
 import { ToastService } from '../../../core/services/toast.service';
 import { TableCreateModalService } from '../../../core/services/table-create-modal.service';
+import { EditorFacadeService } from '../../../core/services/editor-facade.service';
 
 @Component({
   selector: 'app-table-create-modal',
@@ -147,6 +148,7 @@ import { TableCreateModalService } from '../../../core/services/table-create-mod
 export class TableCreateModalComponent implements OnDestroy {
   private readonly tableModal = inject(TableCreateModalService);
   private readonly toast = inject(ToastService);
+  private readonly editorFacade = inject(EditorFacadeService);
   private readonly destroy$ = new Subject<void>();
 
   readonly visible$ = this.tableModal.visible$;
@@ -192,7 +194,18 @@ export class TableCreateModalComponent implements OnDestroy {
     const c = Math.max(1, Math.min(20, Math.floor(Number(this.cols)) || 3));
     this.rows = r;
     this.cols = c;
-    this.toast.show('Table creation is not connected to editor yet', 'info');
+    const api = typeof window !== 'undefined' ? (window as unknown as { __designosAPI?: { createTableAtCenter?: (rows: number, cols: number) => void } }).__designosAPI : null;
+    if (api && typeof api.createTableAtCenter === 'function') {
+      try {
+        api.createTableAtCenter(r, c);
+        this.editorFacade.refreshLayersList();
+      } catch (e) {
+        console.warn('[TableCreateModal] createTableAtCenter failed:', e);
+        this.toast.show('Table creation failed', 'error');
+      }
+    } else {
+      this.toast.show('Table creation is not connected to editor yet', 'info');
+    }
     this.close();
   }
 }

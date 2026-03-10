@@ -3,9 +3,11 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject, distinctUntilChanged, filter, map, switchMap, take, takeUntil, tap } from 'rxjs';
 import { EditorFacadeService } from '../../core/services/editor-facade.service';
 import { EditorShellComponent } from '../../editor/editor-shell/editor-shell.component';
+import { SvgPasteModalService } from '../../core/services/svg-paste-modal.service';
 import { ContextMenuComponent } from '../../shared/context-menu/context-menu.component';
 import { RecentModalComponent } from '../../shared/modals/recent-modal/recent-modal.component';
 import { TableCreateModalComponent } from '../../shared/modals/table-create-modal/table-create-modal.component';
+import { SvgPasteModalComponent } from '../../shared/modals/svg-paste-modal/svg-paste-modal.component';
 import { ToastComponent } from '../../shared/toast/toast.component';
 import { ToastService } from '../../core/services/toast.service';
 
@@ -19,6 +21,7 @@ import { ToastService } from '../../core/services/toast.service';
     ContextMenuComponent,
     RecentModalComponent,
     TableCreateModalComponent,
+    SvgPasteModalComponent,
   ],
   template: `
     <div class="page">
@@ -42,6 +45,7 @@ import { ToastService } from '../../core/services/toast.service';
       <app-context-menu></app-context-menu>
       <app-recent-modal></app-recent-modal>
       <app-table-create-modal></app-table-create-modal>
+      <app-svg-paste-modal></app-svg-paste-modal>
       <app-toast></app-toast>
     </div>
   `,
@@ -109,6 +113,7 @@ export class ProjectPageComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly editorFacade = inject(EditorFacadeService);
   private readonly toast = inject(ToastService);
+  private readonly svgPasteModal = inject(SvgPasteModalService);
   private readonly destroy$ = new Subject<void>();
 
   projectId = 'default';
@@ -124,6 +129,18 @@ export class ProjectPageComponent implements OnInit, OnDestroy {
       .subscribe((id) => {
         this.projectId = id;
         this.editorFacade.setActiveProjectId(id);
+      });
+
+    // When bridge is ready, register Angular SVG paste modal so legacy paste shows it instead of DOM modal.
+    this.editorFacade.bridgeReady$
+      .pipe(
+        filter(Boolean),
+        take(1),
+        takeUntil(this.destroy$),
+      )
+      .subscribe(() => {
+        const api = typeof window !== 'undefined' ? (window as unknown as { __designosAPI?: { openSvgPasteChoice?: () => void } }).__designosAPI : null;
+        if (api) api.openSvgPasteChoice = () => this.svgPasteModal.open();
       });
 
     // Load project document only after editor bridge is ready, so we don't break current runtime flow.

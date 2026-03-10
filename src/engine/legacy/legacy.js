@@ -4124,6 +4124,10 @@ function movePath(el,dx,dy){
 var _pendingSVG={text:null,dataURL:null};
 function showSVGChoiceModal(svgText,dataURL){
   _pendingSVG={text:svgText,dataURL:dataURL};
+  if(window.__designosAPI&&typeof window.__designosAPI.openSvgPasteChoice==='function'){
+    window.__designosAPI.openSvgPasteChoice();
+    return;
+  }
   document.getElementById('svg-paste-modal').style.display='flex';
 }
 function confirmSVGPaste(mode){
@@ -6061,6 +6065,31 @@ if (typeof window !== 'undefined') {
     snapshot();
     if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
   }
+  function createTableAtCenter(rows, cols) {
+    if (!dom || !dom.canvas) return;
+    var r = dom.canvas.getBoundingClientRect();
+    var cx = (r.width / 2 - S.px) / S.zoom;
+    var cy = (r.height / 2 - S.py) / S.zoom;
+    var sp = snapPt({ x: cx, y: cy });
+    var fr = frameAt(sp.x, sp.y);
+    var frAbs = fr ? absPos(fr) : null;
+    var tx = fr ? sp.x - frAbs.x : sp.x;
+    var ty = fr ? sp.y - frAbs.y : sp.y;
+    var rowsNum = Math.max(1, Math.min(50, parseInt(rows, 10) || 3));
+    var colsNum = Math.max(1, Math.min(20, parseInt(cols, 10) || 3));
+    var api = { uid: uid, nid: S.nid };
+    var created = tableModule.createTableData(rowsNum, colsNum, tx, ty, { frameId: fr ? fr.id : null, groupId: null, name: 'Table ' + (S.nid) }, api);
+    creadom.ted.cellEls.forEach(function(c) { S.els.push(c); });
+    S.els.push(creadom.ted.tableEl);
+    if (fr) fr.children.push(creadom.ted.tableEl.id);
+    S.nid++;
+    renderEl(creadom.ted.tableEl);
+    selectEl(creadom.ted.tableEl.id);
+    refreshLayers();
+    snapshot();
+    toast('Table added');
+    if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
+  }
   window.__designosAPI = {
     mkEl: mkEl,
     delSel: delSel,
@@ -6085,6 +6114,8 @@ if (typeof window !== 'undefined') {
     updateItemStroke: updateItemStroke,
     updateItemStrokeWidth: updateItemStrokeWidth,
     updateItemOpacity: updateItemOpacity,
-    updateItemRadius: updateItemRadius
+    updateItemRadius: updateItemRadius,
+    createTableAtCenter: createTableAtCenter,
+    openSvgPasteChoice: null
   };
 }

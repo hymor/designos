@@ -16,10 +16,38 @@ import { EditorFacadeService } from '../../core/services/editor-facade.service';
         role="menu"
       >
         @if (kind() === 'object') {
+          <button
+            type="button"
+            class="obj-ctx-item"
+            [disabled]="!canDelete()"
+            (click)="onDelete()"
+          >
+            Delete
+          </button>
           <button type="button" class="obj-ctx-item" (click)="onCopy()">Copy</button>
-          <button type="button" class="obj-ctx-item" [disabled]="!canPaste()" (click)="onPaste()">Paste</button>
+          <button type="button" class="obj-ctx-item" [disabled]="!canPaste()" (click)="onPaste()">
+            Paste
+          </button>
+          <button
+            type="button"
+            class="obj-ctx-item"
+            [disabled]="!canGroup()"
+            (click)="onGroup()"
+          >
+            Group
+          </button>
+          <button
+            type="button"
+            class="obj-ctx-item"
+            [disabled]="!canUngroup()"
+            (click)="onUngroup()"
+          >
+            Ungroup
+          </button>
         } @else {
-          <button type="button" class="obj-ctx-item" [disabled]="!canPaste()" (click)="onPaste()">Paste</button>
+          <button type="button" class="obj-ctx-item" [disabled]="!canPaste()" (click)="onPaste()">
+            Paste
+          </button>
           <button
             type="button"
             class="obj-ctx-item"
@@ -91,6 +119,18 @@ export class ContextMenuComponent {
     const S = win && win.S;
     return !!(S && Array.isArray(S.clipboard) && S.clipboard.length);
   });
+  readonly canDelete = computed(() => {
+    const sel = this.editor.getSelection();
+    return !!(sel.ids && sel.ids.length);
+  });
+  readonly canGroup = computed(() => {
+    const sel = this.editor.getSelection();
+    return !!(sel.ids && sel.ids.length > 1);
+  });
+  readonly canUngroup = computed(() => {
+    const sel = this.editor.getSelection();
+    return !!(sel.ids && sel.ids.length);
+  });
 
   constructor() {
     effect(() => {
@@ -103,7 +143,6 @@ export class ContextMenuComponent {
   }
 
   @HostListener('document:click')
-  @HostListener('document:contextmenu')
   onGlobalClick(): void {
     this.close();
   }
@@ -115,6 +154,11 @@ export class ContextMenuComponent {
 
   close(): void {
     this.svc.close();
+  }
+
+  onDelete(): void {
+    this.editor.deleteSelected();
+    this.close();
   }
 
   onCopy(): void {
@@ -139,6 +183,22 @@ export class ContextMenuComponent {
       win.pasteItemsAtCenter();
     } else if (typeof win.pasteItems === 'function') {
       win.pasteItems();
+    }
+    this.close();
+  }
+
+  onGroup(): void {
+    const win = window as any;
+    if (typeof win.groupSel === 'function') {
+      win.groupSel();
+    }
+    this.close();
+  }
+
+  onUngroup(): void {
+    const win = window as any;
+    if (typeof win.ungroupSel === 'function') {
+      win.ungroupSel();
     }
     this.close();
   }
