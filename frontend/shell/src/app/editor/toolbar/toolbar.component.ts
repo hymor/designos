@@ -1,5 +1,5 @@
-import { AsyncPipe, NgClass } from '@angular/common';
-import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, inject } from '@angular/core';
+import { AsyncPipe, NgClass, NgIf } from '@angular/common';
+import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, ViewChild, inject } from '@angular/core';
 import { combineLatest, map, of, startWith } from 'rxjs';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -11,7 +11,7 @@ import { ToastService } from '../../core/services/toast.service';
 @Component({
   selector: 'app-toolbar',
   standalone: true,
-  imports: [AsyncPipe, NgClass],
+  imports: [AsyncPipe, NgClass, NgIf],
   template: `
     <div id="topbar">
       <div class="logo" (click)="onLogoClick()" title="Projects">DesignOS</div>
@@ -251,9 +251,39 @@ import { ToastService } from '../../core/services/toast.service';
 
         <div class="tsep"></div>
 
-        <button class="hbtn dim" id="cut-btn" title="Cut (Ctrl+X)" type="button" disabled>✂ Cut</button>
-        <button class="hbtn dim" id="copy-btn" title="Copy (Ctrl+C)" type="button" disabled>⎘ Copy</button>
-        <button class="hbtn dim" id="paste-btn" title="Paste (Ctrl+V)" type="button" disabled>⎗ Paste</button>
+        <button
+          class="hbtn"
+          [class.dim]="!(bridgeAvailable$ | async)"
+          id="cut-btn"
+          title="Cut (Ctrl+X)"
+          type="button"
+          [disabled]="!(bridgeAvailable$ | async)"
+          (click)="onCut()"
+        >
+          ✂ Cut
+        </button>
+        <button
+          class="hbtn"
+          [class.dim]="!(bridgeAvailable$ | async)"
+          id="copy-btn"
+          title="Copy (Ctrl+C)"
+          type="button"
+          [disabled]="!(bridgeAvailable$ | async)"
+          (click)="onCopy()"
+        >
+          ⎘ Copy
+        </button>
+        <button
+          class="hbtn"
+          [class.dim]="!(bridgeAvailable$ | async)"
+          id="paste-btn"
+          title="Paste (Ctrl+V)"
+          type="button"
+          [disabled]="!(bridgeAvailable$ | async)"
+          (click)="onPaste()"
+        >
+          ⎗ Paste
+        </button>
 
         <div class="tsep"></div>
 
@@ -308,7 +338,34 @@ import { ToastService } from '../../core/services/toast.service';
           📁 Import
         </button>
 
-        <button class="exp-btn" id="exp-btn" type="button" (click)="onExport()">↓ Export</button>
+        <div class="exp-dropdown-wrap" #exportDropdownRef>
+          <button
+            class="exp-btn"
+            id="exp-btn"
+            type="button"
+            title="Export document"
+            [class.dim]="!(bridgeAvailable$ | async)"
+            [disabled]="!(bridgeAvailable$ | async)"
+            (click)="toggleExportMenu($event)"
+          >
+            ↓ Export
+          </button>
+          <div class="exp-dropdown" *ngIf="showExportMenu">
+            <button type="button" class="exp-dropdown-item" (click)="onExportDocJson(); closeExportMenu()">JSON</button>
+            <button type="button" class="exp-dropdown-item" (click)="onExportDocPng(); closeExportMenu()">PNG</button>
+            <button type="button" class="exp-dropdown-item" (click)="onExportDocJpg(); closeExportMenu()">JPG</button>
+          </div>
+        </div>
+        <button
+          class="hbtn"
+          [class.dim]="!(bridgeAvailable$ | async)"
+          type="button"
+          title="Export project (.designos)"
+          [disabled]="!(bridgeAvailable$ | async)"
+          (click)="onExportProject()"
+        >
+          ↓ Export project
+        </button>
       </div>
     </div>
   `,
@@ -341,7 +398,7 @@ import { ToastService } from '../../core/services/toast.service';
         gap: 3px;
         padding: 0 8px;
         z-index: 100;
-        overflow-x: auto;
+        overflow: visible;
         color: var(--text);
         user-select: none;
       }
@@ -404,6 +461,7 @@ import { ToastService } from '../../core/services/toast.service';
         align-items: center;
         gap: 5px;
         flex-shrink: 0;
+        overflow: visible;
       }
       .zoom-wrap {
         display: flex;
@@ -502,6 +560,40 @@ import { ToastService } from '../../core/services/toast.service';
       .exp-btn:hover {
         opacity: 0.85;
       }
+      .exp-dropdown-wrap {
+        position: relative;
+        display: inline-flex;
+        overflow: visible;
+      }
+      .exp-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        margin-top: 4px;
+        min-width: 100%;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        z-index: 1100;
+        overflow: hidden;
+      }
+      .exp-dropdown-item {
+        display: block;
+        width: 100%;
+        padding: 8px 12px;
+        border: none;
+        background: none;
+        color: var(--text2);
+        font-size: 12px;
+        text-align: left;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .exp-dropdown-item:hover {
+        background: var(--surface3);
+        color: var(--text);
+      }
     `,
   ],
 })
@@ -555,7 +647,41 @@ export class ToolbarComponent implements AfterViewInit, OnDestroy {
   }
 
   @ViewChild('projName') projNameRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('exportDropdownRef') exportDropdownRef?: ElementRef<HTMLElement>;
   private readonly destroy$ = new Subject<void>();
+  showExportMenu = false;
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(e: MouseEvent): void {
+    if (this.exportDropdownRef?.nativeElement?.contains(e.target as Node)) return;
+    this.closeExportMenu();
+  }
+
+  toggleExportMenu(e: Event): void {
+    e.stopPropagation();
+    if (!this.editorFacade.isBridgeAvailable()) return;
+    this.showExportMenu = !this.showExportMenu;
+  }
+
+  closeExportMenu(): void {
+    this.showExportMenu = false;
+  }
+
+  onExportDocJson(): void {
+    this.editorFacade.exportDocumentAsJson();
+  }
+
+  onExportDocPng(): void {
+    this.editorFacade.exportDocumentAsPng();
+  }
+
+  onExportDocJpg(): void {
+    this.editorFacade.exportDocumentAsJpg();
+  }
+
+  onExportProject(): void {
+    this.editorFacade.exportProject();
+  }
 
   ngAfterViewInit(): void {
     this.editorFacade.projectName$
@@ -613,6 +739,18 @@ export class ToolbarComponent implements AfterViewInit, OnDestroy {
     api?.toggleSnap?.();
   }
 
+  onCut(): void {
+    this.editorFacade.cut();
+  }
+
+  onCopy(): void {
+    this.editorFacade.copy();
+  }
+
+  onPaste(): void {
+    this.editorFacade.paste();
+  }
+
   /** Default project id for Save/Load Server (dev). */
   private get serverProjectId(): string {
     return this.editorFacade.getActiveProjectId();
@@ -655,10 +793,6 @@ export class ToolbarComponent implements AfterViewInit, OnDestroy {
         this.toast.show('Load failed: ' + msg, 'error');
       },
     });
-  }
-
-  onExport(): void {
-    this.editorFacade.exportSelected();
   }
 
   onProjectFileSelected(input: HTMLInputElement): void {

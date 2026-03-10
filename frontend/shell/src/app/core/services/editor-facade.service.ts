@@ -490,6 +490,86 @@ export class EditorFacadeService {
     }
   }
 
+  /** Export whole document as one PNG (legacy exportDocumentAsPng). */
+  exportDocumentAsPng(): void {
+    const api = this.designosAPI;
+    if (!api || typeof api.exportDocumentAsPng !== 'function') {
+      console.warn('[EditorFacade] exportDocumentAsPng not available.');
+      return;
+    }
+    try {
+      api.exportDocumentAsPng();
+    } catch (e) {
+      console.warn('[EditorFacade] exportDocumentAsPng failed:', e);
+    }
+  }
+
+  /** Export document as JSON file (download). */
+  exportDocumentAsJson(): void {
+    const doc = this.getDocument();
+    if (doc == null) {
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('[EditorFacade] No document to export as JSON.');
+      }
+      return;
+    }
+    try {
+      const json = JSON.stringify(doc, null, 2);
+      const name = (this.getProjectName() || 'document').replace(/[^\w\-.]/g, '_') + '.json';
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.download = name;
+      a.href = url;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('[EditorFacade] exportDocumentAsJson failed:', e);
+      }
+    }
+  }
+
+  /** Export whole document as JPG (legacy exportDocumentAsJpg). */
+  exportDocumentAsJpg(): void {
+    const api = this.designosAPI;
+    if (!api || typeof api.exportDocumentAsJpg !== 'function') {
+      console.warn('[EditorFacade] exportDocumentAsJpg not available.');
+      return;
+    }
+    try {
+      api.exportDocumentAsJpg();
+    } catch (e) {
+      console.warn('[EditorFacade] exportDocumentAsJpg failed:', e);
+    }
+  }
+
+  /** Export project as .designos file (for backup / re-import). */
+  exportProject(): void {
+    const doc = this.getDocument();
+    if (doc == null) {
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('[EditorFacade] No document to export.');
+      }
+      return;
+    }
+    try {
+      const json = JSON.stringify(doc);
+      const name = (this.getProjectName() || 'project').replace(/[^\w\-.]/g, '_') + '.designos';
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.download = name;
+      a.href = url;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('[EditorFacade] exportProject failed:', e);
+      }
+    }
+  }
+
   /** Add image to canvas from data URL (center of viewport). Legacy addImageFromDataUrl. */
   addImageFromDataUrl(dataUrl: string): void {
     const api = this.designosAPI;
@@ -531,6 +611,54 @@ export class EditorFacadeService {
       this.markDirty();
     } catch (e) {
       console.warn('[EditorFacade] deleteSelected failed:', e);
+    }
+  }
+
+  /** Cut selection to clipboard (same as Ctrl+X). */
+  cut(): void {
+    const api = this.designosAPI;
+    if (!api || typeof api.cutItems !== 'function') {
+      console.warn('[EditorFacade] cutItems not available.');
+      return;
+    }
+    try {
+      api.cutItems();
+      this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
+      this.markDirty();
+    } catch (e) {
+      console.warn('[EditorFacade] cut failed:', e);
+    }
+  }
+
+  /** Copy selection to clipboard (same as Ctrl+C). */
+  copy(): void {
+    const api = this.designosAPI;
+    if (!api || typeof api.copyItems !== 'function') {
+      console.warn('[EditorFacade] copyItems not available.');
+      return;
+    }
+    try {
+      api.copyItems();
+    } catch (e) {
+      console.warn('[EditorFacade] copy failed:', e);
+    }
+  }
+
+  /** Paste from clipboard (same as Ctrl+V). */
+  paste(): void {
+    const api = this.designosAPI;
+    if (!api || typeof api.pasteItems !== 'function') {
+      console.warn('[EditorFacade] pasteItems not available.');
+      return;
+    }
+    try {
+      api.pasteItems();
+      this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
+      this.markDirty();
+    } catch (e) {
+      console.warn('[EditorFacade] paste failed:', e);
     }
   }
 

@@ -5837,7 +5837,65 @@ function exportSelectedAsPng(){
   exportOne(items[0],0);
 }
 
-var expBtn=document.getElementById('exp-btn');if(expBtn)expBtn.addEventListener('click',function(){ exportSelectedAsPng(); });
+function exportDocumentAsPng(){
+  var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  function expand(bb){if(!bb||bb.w<1||bb.h<1)return;minX=Math.min(minX,bb.x);minY=Math.min(minY,bb.y);maxX=Math.max(maxX,bb.x+bb.w);maxY=Math.max(maxY,bb.y+bb.h);}
+  S.frames.filter(function(f){return !f.frameId;}).forEach(function(f){expand({x:f.x,y:f.y,w:f.w,h:f.h});});
+  S.els.filter(function(e){return !e.frameId;}).forEach(function(e){expand(getBBox(e));});
+  S.groups.filter(function(g){return !g.frameId;}).forEach(function(g){expand(getGroupBBox(g));});
+  if(minX===Infinity){toast('Document is empty');return;}
+  var pad=8;
+  var x=minX-pad,y=minY-pad,w=Math.ceil(maxX-minX+pad*2),h=Math.ceil(maxY-minY+pad*2);
+  if(w<1)w=1;if(h<1)h=1;
+  var dc=dom.defsEl.innerHTML;
+  var fgHtml=dom.framesG.outerHTML.replace(/\s*transform="[^"]*"/,'');
+  var elHtml=dom.elsLoose.outerHTML.replace(/\s*transform="[^"]*"/,'');
+  var ss='<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="'+w+'" height="'+h+'" viewBox="'+x+' '+y+' '+w+' '+h+'"><defs>'+dc+'</defs>'+fgHtml+elHtml+'</svg>';
+  var name=(S.projName||'document').replace(/[^\w\-\.]/g,'_')+'.png';
+  var img=new Image();
+  var blob=new Blob([ss],{type:'image/svg+xml'});
+  var url=URL.createObjectURL(blob);
+  img.onload=function(){
+    var c=document.createElement('canvas');c.width=w*2;c.height=h*2;
+    var ctx=c.getContext('2d');ctx.scale(2,2);ctx.drawImage(img,0,0);
+    URL.revokeObjectURL(url);
+    var a=document.createElement('a');a.download=name;a.href=c.toDataURL('image/png');a.click();
+    toast('Document exported ✓');
+  };
+  img.onerror=function(){URL.revokeObjectURL(url);toast('Export failed');};
+  img.src=url;
+}
+
+function exportDocumentAsJpg(){
+  var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  function expand(bb){if(!bb||bb.w<1||bb.h<1)return;minX=Math.min(minX,bb.x);minY=Math.min(minY,bb.y);maxX=Math.max(maxX,bb.x+bb.w);maxY=Math.max(maxY,bb.y+bb.h);}
+  S.frames.filter(function(f){return !f.frameId;}).forEach(function(f){expand({x:f.x,y:f.y,w:f.w,h:f.h});});
+  S.els.filter(function(e){return !e.frameId;}).forEach(function(e){expand(getBBox(e));});
+  S.groups.filter(function(g){return !g.frameId;}).forEach(function(g){expand(getGroupBBox(g));});
+  if(minX===Infinity){toast('Document is empty');return;}
+  var pad=8;
+  var x=minX-pad,y=minY-pad,w=Math.ceil(maxX-minX+pad*2),h=Math.ceil(maxY-minY+pad*2);
+  if(w<1)w=1;if(h<1)h=1;
+  var dc=dom.defsEl.innerHTML;
+  var fgHtml=dom.framesG.outerHTML.replace(/\s*transform="[^"]*"/,'');
+  var elHtml=dom.elsLoose.outerHTML.replace(/\s*transform="[^"]*"/,'');
+  var ss='<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="'+w+'" height="'+h+'" viewBox="'+x+' '+y+' '+w+' '+h+'"><defs>'+dc+'</defs>'+fgHtml+elHtml+'</svg>';
+  var name=(S.projName||'document').replace(/[^\w\-\.]/g,'_')+'.jpg';
+  var img=new Image();
+  var blob=new Blob([ss],{type:'image/svg+xml'});
+  var url=URL.createObjectURL(blob);
+  img.onload=function(){
+    var c=document.createElement('canvas');c.width=w*2;c.height=h*2;
+    var ctx=c.getContext('2d');ctx.scale(2,2);ctx.drawImage(img,0,0);
+    URL.revokeObjectURL(url);
+    var a=document.createElement('a');a.download=name;a.href=c.toDataURL('image/jpeg',0.92);a.click();
+    toast('Document exported ✓');
+  };
+  img.onerror=function(){URL.revokeObjectURL(url);toast('Export failed');};
+  img.src=url;
+}
+
+var expBtn=document.getElementById('exp-btn');if(expBtn&&(!window.__designosAPI||typeof window.__designosAPI.onDocumentChange!=='function'))expBtn.addEventListener('click',function(){ exportSelectedAsPng(); });
 
 // ── EYEDROPPER ──
 function activateEyedropper(){
@@ -6167,7 +6225,9 @@ if (typeof window !== 'undefined') {
     exportSelectedAsPng: exportSelectedAsPng,
     addImageFromDataUrl: addImageFromDataUrl,
     alignItems: alignItems,
-    toggleSnap: toggleSnap
+    toggleSnap: toggleSnap,
+    exportDocumentAsPng: exportDocumentAsPng,
+    exportDocumentAsJpg: exportDocumentAsJpg
   };
   try {
     window.__designosAPI.copyItems = copyItems;
