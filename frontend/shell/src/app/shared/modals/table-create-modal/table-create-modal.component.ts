@@ -48,6 +48,15 @@ import { EditorFacadeService } from '../../../core/services/editor-facade.servic
   `,
   styles: [
     `
+      :host {
+        --tc-surface: var(--surface, #1c1c1e);
+        --tc-surface2: var(--surface2, #242428);
+        --tc-border: var(--border, #333338);
+        --tc-text: var(--text, #e8e8ea);
+        --tc-text2: var(--text2, #888890);
+        --tc-text3: var(--text3, #4a4a52);
+        --tc-accent: var(--accent, #7b61ff);
+      }
       .table-create-modal {
         position: fixed;
         inset: 0;
@@ -64,8 +73,8 @@ import { EditorFacadeService } from '../../../core/services/editor-facade.servic
       }
       .table-create-dialog {
         position: relative;
-        background: var(--surface);
-        border: 1px solid var(--border);
+        background: var(--tc-surface);
+        border: 1px solid var(--tc-border);
         border-radius: 14px;
         padding: 24px;
         width: 320px;
@@ -76,12 +85,11 @@ import { EditorFacadeService } from '../../../core/services/editor-facade.servic
         gap: 20px;
       }
       .table-create-title {
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 700;
-        color: var(--text2);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        margin: 0;
+        color: var(--tc-text);
+        margin: 0 0 4px 0;
+        letter-spacing: 0.02em;
       }
       .table-create-row {
         display: flex;
@@ -89,22 +97,22 @@ import { EditorFacadeService } from '../../../core/services/editor-facade.servic
         gap: 6px;
       }
       .table-create-row label {
-        font-size: 12px;
-        color: var(--text3);
+        font-size: 13px;
+        color: var(--tc-text2);
         font-weight: 500;
       }
       .table-create-row input {
-        background: var(--surface2);
-        border: 1.5px solid var(--border);
+        background: var(--tc-surface2);
+        border: 1.5px solid var(--tc-border);
         border-radius: 8px;
         padding: 10px 12px;
-        font-size: 14px;
-        color: var(--text);
+        font-size: 15px;
+        color: var(--tc-text);
         outline: none;
         transition: border-color 0.15s;
       }
       .table-create-row input:focus {
-        border-color: var(--accent);
+        border-color: var(--tc-accent);
       }
       .table-create-row input::-webkit-inner-spin-button,
       .table-create-row input::-webkit-outer-spin-button {
@@ -120,22 +128,23 @@ import { EditorFacadeService } from '../../../core/services/editor-facade.servic
         height: 36px;
         padding: 0 18px;
         border-radius: 8px;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         cursor: pointer;
         transition: opacity 0.15s, background 0.15s;
       }
       .table-create-btn.cancel {
-        background: var(--surface2);
-        border: 1.5px solid var(--border);
-        color: var(--text2);
+        background: var(--tc-surface2);
+        border: 1.5px solid var(--tc-border);
+        color: var(--tc-text2);
       }
       .table-create-btn.cancel:hover {
-        background: var(--surface3);
-        border-color: var(--text3);
+        background: var(--tc-surface2);
+        filter: brightness(1.1);
+        color: var(--tc-text);
       }
       .table-create-btn.ok {
-        background: var(--accent);
+        background: var(--tc-accent);
         border: none;
         color: #fff;
       }
