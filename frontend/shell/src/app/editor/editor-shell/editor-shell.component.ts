@@ -1,8 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { ToolbarComponent } from '../toolbar/toolbar.component';
 import { CanvasHostComponent } from '../canvas-host/canvas-host.component';
 import { PropertiesPanelComponent } from '../properties-panel/properties-panel.component';
 import { LayersPanelComponent } from '../layers-panel/layers-panel.component';
+import { EditorFacadeService } from '../../core/services/editor-facade.service';
 
 @Component({
   selector: 'app-editor-shell',
@@ -44,4 +45,50 @@ import { LayersPanelComponent } from '../layers-panel/layers-panel.component';
     `,
   ],
 })
-export class EditorShellComponent {}
+export class EditorShellComponent {
+  constructor(private readonly editorFacade: EditorFacadeService) {}
+
+  @HostListener('window:keydown', ['$event'])
+  onKeyDown(e: KeyboardEvent): void {
+    // Avoid interfering with typing and native undo/redo inside inputs/textareas/contenteditable.
+    const target = e.target as (EventTarget & { tagName?: string; isContentEditable?: boolean }) | null;
+    const tag = (target && typeof target.tagName === 'string' ? target.tagName : '').toLowerCase();
+    const isTextInput =
+      tag === 'input' || tag === 'textarea' || (target && (target as any).isContentEditable === true);
+
+    const key = (e.key ?? '').toLowerCase();
+    const isMod = e.ctrlKey || e.metaKey;
+
+    // Delete / Backspace -> delete selected (but not in text inputs)
+    if (!isTextInput && (key === 'delete' || key === 'backspace')) {
+      e.preventDefault();
+      this.editorFacade.deleteSelected();
+      return;
+    }
+
+    // Ctrl/Cmd+Z -> undo (but not in text inputs)
+    if (!isTextInput && isMod && !e.shiftKey && key === 'z') {
+      e.preventDefault();
+      this.editorFacade.undo();
+      return;
+    }
+
+    // Ctrl/Cmd+Shift+Z -> redo (but not in text inputs)
+    if (!isTextInput && isMod && e.shiftKey && key === 'z') {
+      e.preventDefault();
+      this.editorFacade.redo();
+      return;
+    }
+
+    // Ctrl/Cmd+S -> save to server (allow even inside inputs; prevent browser save dialog)
+    if (isMod && key === 's') {
+      e.preventDefault();
+      const doc = this.editorFacade.getDocument();
+      const projectId = (doc?.projId as string) ?? 'default';
+      this.editorFacade.saveToServer(projectId).subscribe({
+        next: () => console.log('[Shortcuts] Saved to server:', projectId),
+        error: (err) => console.warn('[Shortcuts] Save to server failed:', err),
+      });
+    }
+  }
+}
