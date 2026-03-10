@@ -23,6 +23,19 @@ export interface EditorSceneItem {
   type: string;
 }
 
+/** One layer row from legacy getLayersItems (tree order, with depth and fold). */
+export interface LayerItem {
+  id: string;
+  name: string;
+  type: string;
+  depth: number;
+  isFrame: boolean;
+  isGroup: boolean;
+  hasChildren: boolean;
+  collapsed: boolean;
+  locked?: boolean;
+}
+
 /** Legacy document format: roundtrip-safe for getDocument/loadDocument. */
 export interface EditorDocument {
   version: number;
@@ -103,6 +116,9 @@ export class EditorFacadeService {
   private readonly activeToolSubject = new BehaviorSubject<EditorToolId>('select');
   readonly activeTool$: Observable<EditorToolId> = this.activeToolSubject.asObservable();
 
+  private readonly layersListSubject = new BehaviorSubject<LayerItem[]>([]);
+  readonly layersList$: Observable<LayerItem[]> = this.layersListSubject.asObservable();
+
   /** Bridge created by init() via bootstrapLegacyEditor(canvas); primary source. */
   private bridgeInstance: EditorBridgeApi | null = null;
 
@@ -152,6 +168,75 @@ export class EditorFacadeService {
   isBridgeAvailable(): boolean {
     const b = this.bridge;
     return b != null && typeof b.init === 'function';
+  }
+
+  private get designosAPI(): any {
+    return typeof window !== 'undefined' ? (window as any).__designosAPI : null;
+  }
+
+  /** Refresh layers list from engine (getLayersItems). Call after rename/lock/collapse. */
+  refreshLayersList(): void {
+    this._refreshLayersList();
+  }
+
+  private _refreshLayersList(): void {
+    const api = this.designosAPI;
+    if (!api || typeof api.getLayersItems !== 'function') {
+      this.layersListSubject.next([]);
+      return;
+    }
+    try {
+      const raw = api.getLayersItems() as any[];
+      const list: LayerItem[] = (raw || []).map((item: any) => {
+        const obj = item.obj || {};
+        const isF = item.type === 'frame';
+        const isG = item.type === 'group';
+        const hasKids =
+          (isF && obj.children && obj.children.length > 0) ||
+          (isG && obj.children && obj.children.length > 0);
+        const collapsed = isF && hasKids && !!api.S?.collapsedFrames?.[obj.id]
+          || isG && hasKids && !!api.S?.collapsedGroups?.[obj.id];
+        return {
+          id: obj.id || '',
+          name: obj.name != null ? String(obj.name) : obj.type || 'Layer',
+          type: obj.type || item.type || 'item',
+          depth: item.depth ?? 0,
+          isFrame: isF,
+          isGroup: isG,
+          hasChildren: !!hasKids,
+          collapsed: !!collapsed,
+          locked: obj.locked === true,
+        };
+      });
+      this.layersListSubject.next(list);
+    } catch (e) {
+      console.warn('[EditorFacade] getLayersItems failed:', e);
+      this.layersListSubject.next([]);
+    }
+  }
+
+  renameLayer(id: string, name: string): void {
+    const api = this.designosAPI;
+    if (api && typeof api.renameLayer === 'function') {
+      api.renameLayer(id, name);
+      this._refreshLayersList();
+    }
+  }
+
+  setLayerLocked(id: string, locked: boolean): void {
+    const api = this.designosAPI;
+    if (api && typeof api.setLayerLocked === 'function') {
+      api.setLayerLocked(id, locked);
+      this._refreshLayersList();
+    }
+  }
+
+  toggleLayerCollapsed(id: string): void {
+    const api = this.designosAPI;
+    if (api && typeof api.toggleLayerCollapsed === 'function') {
+      api.toggleLayerCollapsed(id);
+      this._refreshLayersList();
+    }
   }
 
   /**
@@ -257,6 +342,7 @@ export class EditorFacadeService {
 
   private refreshSceneItems(): void {
     this.sceneItemsSubject.next(this.getSceneItems());
+    this._refreshLayersList();
   }
 
   private markDirty(): void {
@@ -325,15 +411,15 @@ export class EditorFacadeService {
     }
   }
 
-  /** Select a single element by id (syncs canvas -> properties -> layers). */
-  selectElement(id: string): void {
+  /** Select a single element by id (syncs canvas -> properties -> layers). Additive = shift/ctrl add to selection. */
+  selectElement(id: string, additive?: boolean): void {
     if (!this.isBridgeAvailable()) {
       console.warn(BRIDGE_UNAVAILABLE_MSG, 'selectElement() skipped.');
       return;
     }
     if (!id) return;
     try {
-      this.bridge!.selectElement?.(id, false);
+      this.bridge!.selectElement?.(id, !!additive);
       this.selectionSubject.next(this.getSelection());
       this.refreshSceneItems();
     } catch (e) {

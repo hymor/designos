@@ -4778,10 +4778,7 @@ function applyReorderAndRerender(dragParentFrame,dragParentGroup,dragRootType){
     console.log('[applyReorderAndRerender] branch: none (no match)');
   }
 }
-function refreshLayers(){
-  if(!dom.layersDiv)return;
-  dom.layersDiv.innerHTML='';
-  var lct=document.getElementById('lct');if(lct)lct.textContent=S.frames.length+S.els.length+S.groups.length;
+function getLayersItems(){
   var items=[];
   function addGroup(grp,depth,parentFrameId,parentGroupId,rootType){
     var it={type:'group',obj:grp,depth:depth,parentFrameId:parentFrameId||'',parentGroupId:parentGroupId||'',rootType:rootType||''};
@@ -4817,6 +4814,13 @@ function refreshLayers(){
     var el=S.els.find(function(e){return e.id===id;});
     if(el){items.push({type:'el',obj:el,depth:0,parentFrameId:'',parentGroupId:'',rootType:'el'});}
   });
+  return items;
+}
+function refreshLayers(){
+  if(!dom.layersDiv)return;
+  dom.layersDiv.innerHTML='';
+  var lct=document.getElementById('lct');if(lct)lct.textContent=S.frames.length+S.els.length+S.groups.length;
+  var items=getLayersItems();
   items.forEach(function(item){
     var d=document.createElement('div');
     var isF=item.type==='frame',isGrp=item.type==='group';
@@ -5987,6 +5991,30 @@ function loadDocument(doc) {
 
 // Integration: expose API for EditorEngine (Angular -> facade -> bridge -> engine)
 if (typeof window !== 'undefined') {
+  function renameLayer(id, name) {
+    var T = findAny(id);
+    if (!T) return;
+    T.name = (name != null && name !== '') ? String(name) : (T.name || T.type || '');
+    if (T.type === 'frame' || T.frameId) { var fr = S.frames.find(function(f){return f.id===T.id;}); if (fr) renderFrame(fr); } else { renderEl(T); }
+    refreshLayers();
+    snapshot();
+  }
+  function setLayerLocked(id, locked) {
+    var T = findAny(id);
+    if (!T) return;
+    T.locked = !!locked;
+    if (T.type === 'frame' || T.frameId) { var fr = S.frames.find(function(f){return f.id===T.id;}); if (fr) renderFrame(fr); } else { renderEl(T); }
+    refreshLayers();
+    snapshot();
+  }
+  function toggleLayerCollapsed(id) {
+    if (S.frames.some(function(f){return f.id===id;})) {
+      S.collapsedFrames[id] = !S.collapsedFrames[id];
+    } else if (S.groups.some(function(g){return g.id===id;})) {
+      S.collapsedGroups[id] = !S.collapsedGroups[id];
+    }
+    refreshLayers();
+  }
   window.__designosAPI = {
     mkEl: mkEl,
     delSel: delSel,
@@ -6000,6 +6028,12 @@ if (typeof window !== 'undefined') {
     getDocument: getDocument,
     loadDocument: loadDocument,
     undo: undo,
-    redo: redo
+    redo: redo,
+    selectEl: selectEl,
+    setTool: setTool,
+    getLayersItems: getLayersItems,
+    renameLayer: renameLayer,
+    setLayerLocked: setLayerLocked,
+    toggleLayerCollapsed: toggleLayerCollapsed
   };
 }
