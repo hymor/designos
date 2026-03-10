@@ -10,103 +10,202 @@ import { EditorApiService } from '../../core/services/editor-api.service';
   imports: [RouterLink, AsyncPipe],
   template: `
     <div class="page">
-      <div class="header">
-        <div>
+      <header class="topbar">
+        <div class="logo">DesignOS</div>
+        <div class="topbar-right">
           <h1 class="title">Projects</h1>
-          <p class="subtitle">Select a project to open the editor.</p>
+          <button type="button" class="btn-create" (click)="onCreate()">Create Project</button>
         </div>
-        <button type="button" class="create" (click)="onCreate()">Create Project</button>
-      </div>
+      </header>
 
-      @if (loading$ | async) {
-        <p class="hint">Loading...</p>
-      } @else if (error$ | async; as err) {
-        <p class="hint error">Failed to load projects: {{ err }}</p>
-      } @else {
-        <div class="list">
-          @for (p of (projects$ | async) ?? []; track p.id) {
-            <a class="project" [routerLink]="['/project', p.id]">
-              <div class="name">{{ p.name || 'Untitled' }}</div>
-              <div class="meta">id: {{ p.id }}</div>
-            </a>
-          }
+      <main class="main">
+        @if (loading$ | async) {
+          <div class="empty">Loading…</div>
+        } @else if (error$ | async; as err) {
+          <div class="empty error">Failed to load projects: {{ err }}</div>
+        } @else {
+          <div class="grid">
+            @for (p of (projects$ | async) ?? []; track p.id) {
+              <a class="card" [routerLink]="['/project', p.id]">
+                <div class="card-thumb">
+                  <span class="card-thumb-icon" aria-hidden="true">◫</span>
+                </div>
+                <div class="card-body">
+                  <span class="card-name">{{ p.name || 'Untitled' }}</span>
+                  <span class="card-meta">{{ p.id }}</span>
+                </div>
+              </a>
+            }
+          </div>
           @if (((projects$ | async) ?? []).length === 0) {
-            <p class="hint">No projects yet. Create one.</p>
+            <div class="empty">
+              Select a project to open the editor.<br />
+              No projects yet. Create one.
+            </div>
           }
-        </div>
-      }
+        }
+      </main>
     </div>
   `,
   styles: [
     `
+      :host {
+        --proj-bg: var(--bg, #111112);
+        --proj-surface: var(--surface, #1c1c1e);
+        --proj-surface2: var(--surface2, #242428);
+        --proj-surface3: var(--surface3, #2c2c30);
+        --proj-border: var(--border, #333338);
+        --proj-text: var(--text, #e8e8ea);
+        --proj-text2: var(--text2, #888890);
+        --proj-text3: var(--text3, #4a4a52);
+        --proj-accent: var(--accent, #7b61ff);
+        display: block;
+        height: 100%;
+        min-height: 100vh;
+        background: var(--proj-bg);
+        font-family: system-ui, sans-serif;
+        color: var(--proj-text);
+      }
       .page {
+        display: flex;
+        flex-direction: column;
         height: 100%;
         min-height: 0;
-        padding: 1rem;
       }
-      .header {
+      .topbar {
+        flex-shrink: 0;
+        height: 48px;
+        padding: 0 16px 0 12px;
+        background: var(--proj-surface);
+        border-bottom: 1px solid var(--proj-border);
         display: flex;
-        align-items: flex-start;
+        align-items: center;
+        gap: 12px;
+      }
+      .logo {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--proj-accent);
+        padding-right: 12px;
+        border-right: 1px solid var(--proj-border);
+        margin-right: 4px;
+        white-space: nowrap;
+      }
+      .topbar-right {
+        flex: 1;
+        display: flex;
+        align-items: center;
         justify-content: space-between;
-        gap: 1rem;
-        margin-bottom: 1rem;
+        gap: 12px;
+        min-width: 0;
       }
       .title {
         margin: 0;
-        font-size: 1.25rem;
-        font-weight: 650;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--proj-text);
+        letter-spacing: 0.02em;
       }
-      .subtitle {
-        margin: 0.25rem 0 0 0;
-        color: #666;
-        font-size: 0.9rem;
-      }
-      .create {
-        padding: 0.45rem 0.65rem;
+      .btn-create {
+        height: 32px;
+        padding: 0 14px;
+        background: var(--proj-accent);
+        border: none;
         border-radius: 8px;
-        border: 1px solid #e2e2e2;
-        background: #fff;
-        cursor: pointer;
+        color: #fff;
+        font-size: 12px;
         font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: opacity 0.15s;
       }
-      .create:hover {
-        background: #f6f6f8;
+      .btn-create:hover {
+        opacity: 0.9;
       }
-      .list {
+      .main {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 24px;
+      }
+      .main::-webkit-scrollbar {
+        width: 8px;
+      }
+      .main::-webkit-scrollbar-thumb {
+        background: var(--proj-border);
+        border-radius: 4px;
+      }
+      .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 0.75rem;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 16px;
+        align-content: start;
       }
-      .project {
-        display: block;
-        padding: 0.75rem;
-        border: 1px solid #e2e2e2;
-        border-radius: 10px;
+      .card {
+        display: flex;
+        flex-direction: column;
+        background: var(--proj-surface2);
+        border: 1px solid var(--proj-border);
+        border-radius: 12px;
+        overflow: hidden;
         text-decoration: none;
         color: inherit;
-        background: #fff;
+        transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
       }
-      .project:hover {
-        background: #f6f6f8;
-        border-color: #d6d6d6;
+      .card:hover {
+        border-color: var(--proj-accent);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
       }
-      .name {
+      .card-thumb {
+        width: 100%;
+        height: 120px;
+        background: var(--proj-surface3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .card-thumb-icon {
+        font-size: 36px;
+        color: var(--proj-text3);
+        opacity: 0.4;
+      }
+      .card-body {
+        padding: 12px 14px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+      .card-name {
+        font-size: 13px;
         font-weight: 600;
+        color: var(--proj-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
-      .meta {
-        margin-top: 0.25rem;
-        font-size: 0.8rem;
-        color: #666;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-          monospace;
+      .card-meta {
+        font-size: 11px;
+        color: var(--proj-text3);
+        font-family: ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
-      .hint {
-        margin: 0;
-        color: #666;
-        font-size: 0.9rem;
+      .empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 200px;
+        padding: 48px 24px;
+        text-align: center;
+        color: var(--proj-text3);
+        font-size: 13px;
+        line-height: 1.8;
       }
-      .hint.error {
-        color: #c00;
+      .empty.error {
+        color: #e86c6c;
       }
     `,
   ],
