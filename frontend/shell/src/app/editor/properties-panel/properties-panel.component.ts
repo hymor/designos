@@ -14,33 +14,140 @@ import {
   imports: [FormsModule],
   template: `
     <div class="properties-panel">
-      <div class="panel-title">Properties</div>
       @if (!bridgeAvailable) {
         <p class="no-selection bridge-unavailable">Bridge unavailable</p>
       } @else if (props; as p) {
         @if (selectionCount > 1) {
-          <p class="multi-hint">{{ selectionCount }} items selected</p>
+          <div class="ps">
+            <div class="ps-t">{{ selectionCount }} items selected</div>
+            <div class="ps-sub">Shift+click to add/remove</div>
+          </div>
+          <div class="ps ps-disabled">
+            <div class="ps-t">Align</div>
+            <div class="align-grid">
+              <button class="al-btn" type="button" disabled>◧</button>
+              <button class="al-btn" type="button" disabled>⬌</button>
+              <button class="al-btn" type="button" disabled>◨</button>
+              <button class="al-btn" type="button" disabled>⊶</button>
+              <button class="al-btn" type="button" disabled>⬍</button>
+              <button class="al-btn" type="button" disabled>⊷</button>
+            </div>
+            <div class="align-grid2">
+              <button class="al-btn" type="button" disabled>Dist H</button>
+              <button class="al-btn" type="button" disabled>Dist V</button>
+            </div>
+          </div>
+          <div class="ps ps-disabled">
+            <div class="ps-t">Order</div>
+            <div class="zorder-row">
+              <button class="zo-btn" type="button" disabled>⬆ Front</button>
+              <button class="zo-btn" type="button" disabled>↑ Fwd</button>
+              <button class="zo-btn" type="button" disabled>↓ Bwd</button>
+              <button class="zo-btn" type="button" disabled>⬇ Back</button>
+            </div>
+          </div>
         }
-        <dl class="props-list">
-          <dt>id</dt><dd>{{ p.id }}</dd>
-          <dt>type</dt><dd>{{ p.type }}</dd>
-          <dt>x</dt>
-          <dd>
-            <input type="number" class="prop-input" [ngModel]="editX" (ngModelChange)="editX = $event" (blur)="onPositionBlur(p.id)" />
-          </dd>
-          <dt>y</dt>
-          <dd>
-            <input type="number" class="prop-input" [ngModel]="editY" (ngModelChange)="editY = $event" (blur)="onPositionBlur(p.id)" />
-          </dd>
-          <dt>width</dt>
-          <dd>
-            <input type="number" class="prop-input" [ngModel]="editW" (ngModelChange)="editW = $event" (blur)="onSizeBlur(p.id)" />
-          </dd>
-          <dt>height</dt>
-          <dd>
-            <input type="number" class="prop-input" [ngModel]="editH" (ngModelChange)="editH = $event" (blur)="onSizeBlur(p.id)" />
-          </dd>
-        </dl>
+
+        <div class="ps">
+          <div class="ps-t">Meta</div>
+          <div class="pr">
+            <span class="pl">id</span>
+            <input class="pi pi-readonly" [value]="p.id" readonly />
+          </div>
+          <div class="pr">
+            <span class="pl">type</span>
+            <input class="pi pi-readonly" [value]="p.type" readonly />
+          </div>
+        </div>
+
+        <div class="ps">
+          <div class="ps-t">Position &amp; Size</div>
+          <div class="g2">
+            <div>
+              <div class="g2-lbl">X</div>
+              <input
+                type="number"
+                class="pi"
+                [ngModel]="editX"
+                (ngModelChange)="editX = $event"
+                (blur)="onPositionBlur(p.id)"
+              />
+            </div>
+            <div>
+              <div class="g2-lbl">Y</div>
+              <input
+                type="number"
+                class="pi"
+                [ngModel]="editY"
+                (ngModelChange)="editY = $event"
+                (blur)="onPositionBlur(p.id)"
+              />
+            </div>
+            <div>
+              <div class="g2-lbl">W</div>
+              <input
+                type="number"
+                class="pi"
+                [ngModel]="editW"
+                (ngModelChange)="editW = $event"
+                (ngModelChange)="editW = $event"
+                (blur)="onSizeBlur(p.id)"
+              />
+            </div>
+            <div>
+              <div class="g2-lbl">H</div>
+              <input
+                type="number"
+                class="pi"
+                [ngModel]="editH"
+                (ngModelChange)="editH = $event"
+                (blur)="onSizeBlur(p.id)"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="ps ps-disabled">
+          <div class="ps-t">Align</div>
+          <div class="align-grid">
+            <button class="al-btn" type="button" disabled>◧</button>
+            <button class="al-btn" type="button" disabled>⬌</button>
+            <button class="al-btn" type="button" disabled>◨</button>
+            <button class="al-btn" type="button" disabled>⊶</button>
+            <button class="al-btn" type="button" disabled>⬍</button>
+            <button class="al-btn" type="button" disabled>⊷</button>
+          </div>
+          <div class="align-grid2">
+            <button class="al-btn" type="button" disabled>Dist H</button>
+            <button class="al-btn" type="button" disabled>Dist V</button>
+          </div>
+        </div>
+
+        <div class="ps ps-disabled">
+          <div class="ps-t">Order</div>
+          <div class="zorder-row">
+            <button class="zo-btn" type="button" disabled>⬆ Front</button>
+            <button class="zo-btn" type="button" disabled>↑ Fwd</button>
+            <button class="zo-btn" type="button" disabled>↓ Bwd</button>
+            <button class="zo-btn" type="button" disabled>⬇ Back</button>
+          </div>
+        </div>
+
+        <div class="ps ps-disabled">
+          <div class="ps-t">Fill</div>
+          <div class="pr">
+            <span class="pl">Color</span>
+            <input class="pi pi-readonly" value="N/A" readonly />
+          </div>
+        </div>
+
+        <div class="ps ps-disabled">
+          <div class="ps-t">Stroke</div>
+          <div class="pr">
+            <span class="pl">Width</span>
+            <input class="pi pi-readonly" value="N/A" readonly />
+          </div>
+        </div>
       } @else {
         <p class="no-selection">No selection</p>
       }
@@ -49,44 +156,137 @@ import {
   styles: [
     `
       .properties-panel {
-        padding: 0.5rem;
-        border-left: 1px solid #ddd;
-        min-width: 160px;
-      }
-      .panel-title {
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-      }
-      .props-list {
-        margin: 0;
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 0.25rem 1rem;
-        font-size: 0.875rem;
-      }
-      .props-list dt {
-        color: #666;
+        --surface: #1c1c1e;
+        --surface2: #242428;
+        --surface3: #2c2c30;
+        --border: #333338;
+        --text: #e8e8ea;
+        --text2: #888890;
+        --text3: #4a4a52;
+        --accent: #7b61ff;
+
+        padding: 8px 0;
+        border-left: 1px solid var(--border);
+        min-width: 220px;
+        max-width: 260px;
+        background: var(--surface);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        box-sizing: border-box;
       }
       .no-selection {
         margin: 0;
-        color: #888;
+        color: var(--text3);
         font-size: 0.875rem;
+        padding: 24px 14px;
+        text-align: center;
+        line-height: 1.8;
       }
       .bridge-unavailable {
-        color: #c00;
+        color: #c44;
       }
-      .multi-hint {
-        margin: 0 0 0.5rem 0;
-        font-size: 0.75rem;
-        color: #666;
+      .ps {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
       }
-      .prop-input {
-        width: 100%;
+      .ps-t {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--text3);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+      .ps-sub {
+        font-size: 11px;
+        color: var(--text3);
+        margin-bottom: 8px;
+      }
+      .ps-disabled {
+        opacity: 0.6;
+      }
+      .pr {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 7px;
+      }
+      .pr:last-child {
+        margin-bottom: 0;
+      }
+      .pl {
+        font-size: 11px;
+        color: var(--text3);
+        min-width: 32px;
+      }
+      .pi {
+        flex: 1;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        color: var(--text);
+        font-size: 11px;
+        padding: 4px 7px;
+        outline: none;
+        font-family: monospace;
+        min-width: 0;
         box-sizing: border-box;
-        font-size: 0.875rem;
-        padding: 0.2rem 0.35rem;
-        border: 1px solid #ccc;
-        border-radius: 3px;
+      }
+      .pi:focus {
+        border-color: var(--accent);
+      }
+      .pi-readonly {
+        opacity: 0.7;
+      }
+      .g2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+      }
+      .g2-lbl {
+        font-size: 10px;
+        color: var(--text3);
+        margin-bottom: 3px;
+      }
+      .align-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 4px;
+        margin-bottom: 8px;
+      }
+      .align-grid2 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4px;
+      }
+      .al-btn {
+        padding: 6px 2px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        color: var(--text2);
+        cursor: default;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+      }
+      .zorder-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        gap: 4px;
+      }
+      .zo-btn {
+        padding: 5px 2px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        color: var(--text2);
+        font-size: 10px;
+        cursor: default;
+        text-align: center;
       }
     `,
   ],
