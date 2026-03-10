@@ -22,19 +22,19 @@ import {
             <div class="ps-t">{{ selectionCount }} items selected</div>
             <div class="ps-sub">Shift+click to add/remove</div>
           </div>
-          <div class="ps ps-disabled">
+          <div class="ps">
             <div class="ps-t">Align</div>
             <div class="align-grid">
-              <button class="al-btn" type="button" disabled>◧</button>
-              <button class="al-btn" type="button" disabled>⬌</button>
-              <button class="al-btn" type="button" disabled>◨</button>
-              <button class="al-btn" type="button" disabled>⊶</button>
-              <button class="al-btn" type="button" disabled>⬍</button>
-              <button class="al-btn" type="button" disabled>⊷</button>
+              <button class="al-btn" type="button" title="Align left" (click)="alignLeft()">◧</button>
+              <button class="al-btn" type="button" title="Center horizontally" (click)="alignCenter()">⬌</button>
+              <button class="al-btn" type="button" title="Align right" (click)="alignRight()">◨</button>
+              <button class="al-btn" type="button" title="Align top" (click)="alignTop()">⊶</button>
+              <button class="al-btn" type="button" title="Center vertically" (click)="alignMiddle()">⬍</button>
+              <button class="al-btn" type="button" title="Align bottom" (click)="alignBottom()">⊷</button>
             </div>
             <div class="align-grid2">
-              <button class="al-btn" type="button" disabled>Dist H</button>
-              <button class="al-btn" type="button" disabled>Dist V</button>
+              <button class="al-btn" type="button" title="Distribute horizontally" (click)="distributeHorizontal()">Dist H</button>
+              <button class="al-btn" type="button" title="Distribute vertically" (click)="distributeVertical()">Dist V</button>
             </div>
           </div>
           <div class="ps ps-disabled">
@@ -506,6 +506,31 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
     const w = Number(this.editStrokeWidth);
     if (!Number.isFinite(w) || w < 0) return;
     this.editorFacade.updateStrokeWidth(id, w);
+  }
+
+  alignLeft(): void {
+    this.editorFacade.alignLeft();
+  }
+  alignCenter(): void {
+    this.editorFacade.alignCenter();
+  }
+  alignRight(): void {
+    this.editorFacade.alignRight();
+  }
+  alignTop(): void {
+    this.editorFacade.alignTop();
+  }
+  alignMiddle(): void {
+    this.editorFacade.alignMiddle();
+  }
+  alignBottom(): void {
+    this.editorFacade.alignBottom();
+  }
+  distributeHorizontal(): void {
+    this.editorFacade.distributeHorizontal();
+  }
+  distributeVertical(): void {
+    this.editorFacade.distributeVertical();
   }
 
   ngOnDestroy(): void {

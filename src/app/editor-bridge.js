@@ -91,6 +91,31 @@ class EditorBridge {
     if (this.engine) this.engine.updateSize(id, width, height);
   }
 
+  alignLeft() {
+    if (this.engine) this.engine.alignItems('left');
+  }
+  alignCenter() {
+    if (this.engine) this.engine.alignItems('cx');
+  }
+  alignRight() {
+    if (this.engine) this.engine.alignItems('right');
+  }
+  alignTop() {
+    if (this.engine) this.engine.alignItems('top');
+  }
+  alignMiddle() {
+    if (this.engine) this.engine.alignItems('cy');
+  }
+  alignBottom() {
+    if (this.engine) this.engine.alignItems('bottom');
+  }
+  distributeHorizontal() {
+    if (this.engine) this.engine.alignItems('dist-h');
+  }
+  distributeVertical() {
+    if (this.engine) this.engine.alignItems('dist-v');
+  }
+
   undo() {
     if (this.engine) this.engine.undo();
   }

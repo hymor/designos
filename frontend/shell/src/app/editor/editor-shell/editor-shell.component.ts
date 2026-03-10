@@ -70,12 +70,8 @@ export class EditorShellComponent {
     const key = (e.key ?? '').toLowerCase();
     const isMod = e.ctrlKey || e.metaKey;
 
-    // Delete / Backspace -> delete selected (but not in text inputs)
-    if (!isTextInput && (key === 'delete' || key === 'backspace')) {
-      e.preventDefault();
-      this.editorFacade.deleteSelected();
-      return;
-    }
+    // Delete/Backspace: handled by legacy document keydown (single path to avoid double delSel)
+    // Context menu Delete still uses editorFacade.deleteSelected() -> engine.delSel()
 
     // Ctrl/Cmd+Z -> undo (but not in text inputs)
     if (!isTextInput && isMod && !e.shiftKey && key === 'z') {

@@ -76,6 +76,14 @@ export interface EditorBridgeApi {
   getElementProperties?(id: string): EditorElementProperties | null;
   updatePosition?(id: string, x: number, y: number): void;
   updateSize?(id: string, width: number, height: number): void;
+  alignLeft?(): void;
+  alignCenter?(): void;
+  alignRight?(): void;
+  alignTop?(): void;
+  alignMiddle?(): void;
+  alignBottom?(): void;
+  distributeHorizontal?(): void;
+  distributeVertical?(): void;
   getDocument?(): EditorDocument | null;
   loadDocument?(doc: EditorDocument | string): void;
   undo?(): void;
@@ -572,6 +580,103 @@ export class EditorFacadeService {
       this.markDirty();
     } catch (e) {
       console.warn('[EditorFacade] updateSize failed:', e);
+    }
+  }
+
+  alignLeft(): void {
+    if (this.isBridgeAvailable()) {
+      try {
+        this.bridge!.alignLeft?.();
+        this.selectionSubject.next(this.getSelection());
+        this.refreshSceneItems();
+        this.markDirty();
+      } catch (e) {
+        console.warn('[EditorFacade] alignLeft failed:', e);
+      }
+    }
+  }
+  alignCenter(): void {
+    if (this.isBridgeAvailable()) {
+      try {
+        this.bridge!.alignCenter?.();
+        this.selectionSubject.next(this.getSelection());
+        this.refreshSceneItems();
+        this.markDirty();
+      } catch (e) {
+        console.warn('[EditorFacade] alignCenter failed:', e);
+      }
+    }
+  }
+  alignRight(): void {
+    if (this.isBridgeAvailable()) {
+      try {
+        this.bridge!.alignRight?.();
+        this.selectionSubject.next(this.getSelection());
+        this.refreshSceneItems();
+        this.markDirty();
+      } catch (e) {
+        console.warn('[EditorFacade] alignRight failed:', e);
+      }
+    }
+  }
+  alignTop(): void {
+    if (this.isBridgeAvailable()) {
+      try {
+        this.bridge!.alignTop?.();
+        this.selectionSubject.next(this.getSelection());
+        this.refreshSceneItems();
+        this.markDirty();
+      } catch (e) {
+        console.warn('[EditorFacade] alignTop failed:', e);
+      }
+    }
+  }
+  alignMiddle(): void {
+    if (this.isBridgeAvailable()) {
+      try {
+        this.bridge!.alignMiddle?.();
+        this.selectionSubject.next(this.getSelection());
+        this.refreshSceneItems();
+        this.markDirty();
+      } catch (e) {
+        console.warn('[EditorFacade] alignMiddle failed:', e);
+      }
+    }
+  }
+  alignBottom(): void {
+    if (this.isBridgeAvailable()) {
+      try {
+        this.bridge!.alignBottom?.();
+        this.selectionSubject.next(this.getSelection());
+        this.refreshSceneItems();
+        this.markDirty();
+      } catch (e) {
+        console.warn('[EditorFacade] alignBottom failed:', e);
+      }
+    }
+  }
+  distributeHorizontal(): void {
+    if (this.isBridgeAvailable()) {
+      try {
+        this.bridge!.distributeHorizontal?.();
+        this.selectionSubject.next(this.getSelection());
+        this.refreshSceneItems();
+        this.markDirty();
+      } catch (e) {
+        console.warn('[EditorFacade] distributeHorizontal failed:', e);
+      }
+    }
+  }
+  distributeVertical(): void {
+    if (this.isBridgeAvailable()) {
+      try {
+        this.bridge!.distributeVertical?.();
+        this.selectionSubject.next(this.getSelection());
+        this.refreshSceneItems();
+        this.markDirty();
+      } catch (e) {
+        console.warn('[EditorFacade] distributeVertical failed:', e);
+      }
     }
   }
 

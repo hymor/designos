@@ -130,6 +130,12 @@ export class EditorEngine {
     api.updateItemSize(id, width, height);
   }
 
+  alignItems(mode) {
+    const api = this._api();
+    if (!api || typeof api.alignItems !== 'function') return;
+    api.alignItems(mode);
+  }
+
   undo() {
     const api = this._api();
     if (api && typeof api.undo === 'function') api.undo();

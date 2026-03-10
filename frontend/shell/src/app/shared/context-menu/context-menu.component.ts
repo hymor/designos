@@ -214,6 +214,8 @@ export class ContextMenuComponent {
     const win = window as any;
     if (typeof win.groupSel === 'function') {
       win.groupSel();
+    } else if (win.__designosAPI?.groupSel) {
+      win.__designosAPI.groupSel();
     }
     this.close();
   }
@@ -222,6 +224,8 @@ export class ContextMenuComponent {
     const win = window as any;
     if (typeof win.ungroupSel === 'function') {
       win.ungroupSel();
+    } else if (win.__designosAPI?.ungroupSel) {
+      win.__designosAPI.ungroupSel();
     }
     this.close();
   }

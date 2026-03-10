@@ -731,7 +731,7 @@ document.addEventListener('keydown',function(e){
         el.d=penPtsToD(el.pts,isClosed);
         renderEl(el);S.penEditSelNode=-1;S.penEditSelNodes=[];drawPenEditNodes();snapshot();
       } else {toast('Path needs at least 2 nodes');}
-    } else if(S.selId||S.selIds.length){e.preventDefault();delSel();}
+    } else if(S.selId||S.selIds.length){e.preventDefault();var delFn=window.__designosAPI&&window.__designosAPI.delSel;if(delFn)delFn();}
   }
   if(e.key==='Escape'){
     var spm=document.getElementById('svg-paste-modal');
@@ -4592,12 +4592,12 @@ function alignItems(mode){
   else{var x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;items.forEach(function(it){var bb=getBBox(it);x1=Math.min(x1,bb.x);y1=Math.min(y1,bb.y);x2=Math.max(x2,bb.x+bb.w);y2=Math.max(y2,bb.y+bb.h);});ref={x:x1,y:y1,w:x2-x1,h:y2-y1};}
   if(mode==='dist-h'||mode==='dist-v'){
     var sorted=items.slice().sort(function(a,b){var ba=getBBox(a),bb2=getBBox(b);return mode==='dist-h'?ba.x-bb2.x:ba.y-bb2.y;});
-    if(sordom.ted.length<3){toast('Need 3+ items');return;}
-    var first=getBBox(sorted[0]),last=getBBox(sorted[sordom.ted.length-1]);
-    var tot=0;sordom.ted.forEach(function(it){var bb2=getBBox(it);tot+=mode==='dist-h'?bb2.w:bb2.h;});
+    if(sorted.length<3){toast('Need 3+ items');return;}
+    var first=getBBox(sorted[0]),last=getBBox(sorted[sorted.length-1]);
+    var tot=0;sorted.forEach(function(it){var bb2=getBBox(it);tot+=mode==='dist-h'?bb2.w:bb2.h;});
     var span=mode==='dist-h'?(last.x+last.w-first.x):(last.y+last.h-first.y);
-    var gap=(span-tot)/(sordom.ted.length-1);var cur=mode==='dist-h'?first.x:first.y;
-    sordom.ted.forEach(function(it){
+    var gap=(span-tot)/(sorted.length-1);var cur=mode==='dist-h'?first.x:first.y;
+    sorted.forEach(function(it){
       var bb2=getBBox(it);var isFr2=!!S.frames.find(function(f){return f.id===it.id});var ab=absPos(it);
       var setP=function(ax,ay){if(isFr2){it.x=ax;it.y=ay;renderFrame(it);}else if(it.frameId){var pf=S.frames.find(function(f){return f.id===it.frameId});if(pf){it.x=ax-pf.x;it.y=ay-pf.y;}renderEl(it);}else{it.x=ax;it.y=ay;renderEl(it);}};
       if(mode==='dist-h'){setP(cur,ab.y);cur+=bb2.w+gap;}else{setP(ab.x,cur);cur+=bb2.h+gap;}
@@ -6179,7 +6179,8 @@ if (typeof window !== 'undefined') {
     createTableAtCenter: createTableAtCenter,
     openSvgPasteChoice: null,
     exportSelectedAsPng: exportSelectedAsPng,
-    addImageFromDataUrl: addImageFromDataUrl
+    addImageFromDataUrl: addImageFromDataUrl,
+    alignItems: alignItems
   };
   try {
     window.__designosAPI.copyItems = copyItems;
