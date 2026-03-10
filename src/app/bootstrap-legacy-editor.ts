@@ -152,6 +152,23 @@ function buildHostFromContainer(container: HTMLElement): EditorHostContext {
     return c;
   })();
 
+  const ted = (container.querySelector('#ted') as HTMLTextAreaElement | null) || (() => {
+    const ta = document.createElement('textarea');
+    ta.setAttribute('id', 'ted');
+    ta.setAttribute('aria-label', 'Text edit');
+    ta.style.display = 'none';
+    ta.style.position = 'fixed';
+    ta.style.margin = '0';
+    ta.style.padding = '0';
+    ta.style.border = 'none';
+    ta.style.outline = 'none';
+    ta.style.resize = 'none';
+    ta.style.boxSizing = 'border-box';
+    ta.style.overflow = 'hidden';
+    container.appendChild(ta);
+    return ta;
+  })();
+
   return {
     canvas: container,
     defsEl,
@@ -163,7 +180,7 @@ function buildHostFromContainer(container: HTMLElement): EditorHostContext {
     ghostEllipse,
     ghostLine,
     fghost,
-    ted: null,
+    ted,
     layersDiv: null,
     propsDiv: null,
     bandRect,

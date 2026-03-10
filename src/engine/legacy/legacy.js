@@ -13,6 +13,11 @@ import * as tableModule from '../table/table.js';
 
 // use dom.* at runtime so setHostContext() from bootstrap works (no destructure)
 
+// Text edit overlay: id of element being edited (used by renderElInto and keydown before TEXT EDITOR block runs)
+var tedId = null;
+// Forward ref so dblclick handler in renderElInto can call openTed before TEXT EDITOR block runs
+var openTed = function() {};
+
 // ── UTILS (from state/utils) ──
 function absPos(el){
   if(el.frameId){var f=S.frames.find(function(f){return f.id===el.frameId});if(f){var fp=absPos(f);return{x:fp.x+el.x,y:fp.y+el.y};}}
@@ -733,7 +738,7 @@ document.addEventListener('keydown',function(e){
     var rm=document.getElementById('recent-modal');
     if(rm&&rm.style.display!=='none'){hideRecent();return;}
     if(S.tool==='eyedropper'){setTool(S._prevTool||'select');return;}
-    if(S.penActive){penCommit(false);}else if(S.penEditId){exitPenEditMode();}else{clearSel();commitText();}
+    if(S.penActive){penCommit(false);}else if(S.penEditId){exitPenEditMode();}else{clearSel();if(typeof commitText==='function')commitText();}
   }
   if(e.key==='Enter'&&S.penActive){e.preventDefault();penCommit(true);}
   if(e.ctrlKey||e.metaKey){
@@ -796,16 +801,10 @@ function nudgeSel(dx,dy){
 }
 
 // ── ZOOM / PAN ──
-if(dom.canvas)dom.canvas.addEventListener('wheel',function(e){
-  e.preventDefault();
-  var r=dom.canvas.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top;
-  var f=e.deltaY<0?1.1:0.9,nz=clamp(S.zoom*f,.05,20);
-  S.px=cx-(cx-S.px)*(nz/S.zoom); S.py=cy-(cy-S.py)*(nz/S.zoom); S.zoom=nz;
-  applyTr(); drawSel(); S.frames.filter(function(f){return !f.frameId;}).forEach(function(f){renderFrame(f);});
-},{passive:false});
 var zIn=document.getElementById('z-in');if(zIn)zIn.addEventListener('click',function(){adjZ(1.2)});
 var zOut=document.getElementById('z-out');if(zOut)zOut.addEventListener('click',function(){adjZ(.8)});
 function adjZ(f){
+  if(!dom.canvas)return;
   var r=dom.canvas.getBoundingClientRect(),cx=r.width/2,cy=r.height/2,nz=clamp(S.zoom*f,.05,20);
   S.px=cx-(cx-S.px)*(nz/S.zoom); S.py=cy-(cy-S.py)*(nz/S.zoom); S.zoom=nz;
   applyTr(); drawSel(); S.frames.filter(function(f){return !f.frameId;}).forEach(function(f){renderFrame(f);});
@@ -1529,7 +1528,7 @@ function renderElInto(el,pg,inGroup){
       });
     })(el);
   }
-  if(el.type==='text'&&tedId===el.id&&dom.ted.style.display!=='none')g.style.display='none';
+  if(el.type==='text'&&tedId===el.id&&dom.ted&&dom.ted.style.display!=='none')g.style.display='none';
   // Table cell: transparent hit rect so whole cell area is clickable (not just text)
   if(el.tableCell){
     var cellHit=ns('rect');
@@ -2663,7 +2662,7 @@ if(ids.length===1){
     var gr=S.groups.find(function(g){return g.id===id});
     var T=el||fr||gr; if(!T)return;
     var isF=!!fr;
-    var isTextEdit=T.type==='text'&&tedId===T.id&&dom.ted.style.display!=='none';
+    var isTextEdit=T.type==='text'&&tedId===T.id&&dom.ted&&dom.ted.style.display!=='none';
     var color=(isF||isTextEdit)?'#3ecf8e':'#7b61ff';
 
     var ab, w, h;
@@ -2672,7 +2671,7 @@ if(ids.length===1){
       ab={x:gbb.x,y:gbb.y}; w=gbb.w||1; h=gbb.h||1;
     } else if(T.type==='path'&&T.pts&&T.pts.length){
       var bb=getBBox(T); ab={x:bb.x,y:bb.y}; w=bb.w; h=bb.h;
-    } else if(T.type==='text'&&tedId===T.id&&dom.ted.style.display!=='none'){
+    } else if(T.type==='text'&&tedId===T.id&&dom.ted&&dom.ted.style.display!=='none'){
       ab=absPos(T);
       w=dom.ted.offsetWidth/S.zoom;
       h=dom.ted.offsetHeight/S.zoom;
@@ -2969,8 +2968,17 @@ function getSelBBox(){
   return {x:x1,y:y1,w:x2-x1,h:y2-y1};
 }
 
-// ── CANVAS EVENTS ──
-if(dom.canvas)dom.canvas.addEventListener('mousedown',function(e){
+// ── CANVAS EVENTS ── (attached in runEditorInit when dom.canvas is set, e.g. Angular host)
+function attachCanvasListeners(){
+  if(!dom.canvas)return;
+  dom.canvas.addEventListener('wheel',function(e){
+  e.preventDefault();
+  var r=dom.canvas.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top;
+  var f=e.deltaY<0?1.1:0.9,nz=clamp(S.zoom*f,.05,20);
+  S.px=cx-(cx-S.px)*(nz/S.zoom); S.py=cy-(cy-S.py)*(nz/S.zoom); S.zoom=nz;
+  applyTr(); drawSel(); S.frames.filter(function(f){return !f.frameId;}).forEach(function(f){renderFrame(f);});
+},{passive:false});
+  dom.canvas.addEventListener('mousedown',function(e){
   if(e.target===dom.ted)return; commitText();
   if(S.tool==='eyedropper'){
     var color=edSampleAt(e.clientX,e.clientY);
@@ -3017,7 +3025,7 @@ if(dom.canvas)dom.canvas.addEventListener('mousedown',function(e){
   if(S.tool==='select'){
     var t=e.target;
     var svgRoot=document.getElementById('svg');
-    var clickOnEmpty=(t===canvas)||(t===svgRoot);
+    var clickOnEmpty=(t===dom.canvas)||(t===svgRoot);
     if(clickOnEmpty){
       S.bandAdd=(e.shiftKey||e.ctrlKey||e.metaKey);
       if(!S.bandAdd)clearSel();
@@ -3065,15 +3073,24 @@ if(dom.canvas)dom.canvas.addEventListener('mousedown',function(e){
   }
 });
 
-if(dom.canvas)dom.canvas.addEventListener('dblclick',function(e){
+  dom.canvas.addEventListener('dblclick',function(e){
   if(S.penEditId){
     exitPenEditMode();
     e.preventDefault();
     e.stopPropagation();
+    return;
+  }
+  if(S.selId&&!S.penEditId){
+    var item=findAny(S.selId);
+    if(item&&item.type==='text'){
+      e.preventDefault();
+      e.stopPropagation();
+      openTed(item);
+    }
   }
 });
 
-if(dom.canvas)dom.canvas.addEventListener('mousemove',function(e){
+  dom.canvas.addEventListener('mousemove',function(e){
   if(S.tool==='eyedropper'){edBadgeUpdate(e);return;}
   if(S.lineEditEndpoint!==undefined&&S.lineEditEl){
     var pt=svgPt(e),sp=snapPt(pt);
@@ -3550,7 +3567,7 @@ if(dom.canvas)dom.canvas.addEventListener('mousemove',function(e){
   }
 });
 
-if(dom.canvas)dom.canvas.addEventListener('mouseup',function(e){
+  dom.canvas.addEventListener('mouseup',function(e){
   if(S.textDraw){
     var pt=svgPt(e),sp=snapPt(pt),td=S.textDraw;
     var el;
@@ -3849,8 +3866,8 @@ var imgInput=document.getElementById('img-input');if(imgInput)imgInput.addEventL
     };img.src=ev.target.result;
   };reader.readAsDataURL(file);e.target.value='';
 });
-if(dom.canvas)dom.canvas.addEventListener('dragover',function(e){e.preventDefault();});
-if(dom.canvas)dom.canvas.addEventListener('drop',function(e){
+  dom.canvas.addEventListener('dragover',function(e){e.preventDefault();});
+  dom.canvas.addEventListener('drop',function(e){
   e.preventDefault();var file=e.dataTransfer.files[0];if(!file||!file.type.startsWith('image/'))return;
   var reader=new FileReader();reader.onload=function(ev){
     var pt=svgPt(e);var img=new Image();img.onload=function(){
@@ -4240,7 +4257,7 @@ var svgItem=null,imgItem=null,textItem=null;
 });
 
 // ── TEXT EDITOR ──
-var tedId=null;
+// tedId declared at top of module for use in renderElInto/keydown
 function resizeTed(){
   if(!tedId)return;
   var el=S.els.find(function(e){return e.id===tedId});
@@ -4266,7 +4283,9 @@ function resizeTed(){
   }
   drawSel();
 }
-function openTed(el){
+openTed = function(el){
+  if(!el)return;
+  if(!dom.ted){toast('Text editor overlay not ready');return;}
   tedId=el.id;
   var r=dom.canvas.getBoundingClientRect();
   var ab=absPos(el);
@@ -4275,6 +4294,7 @@ function openTed(el){
   var lineHVal=(el.lineHeight!=null&&el.lineHeight!=='')?+el.lineHeight:1.2;
   dom.ted.style.display='block';
   dom.ted.style.position='fixed';
+  dom.ted.style.zIndex='2000';
   dom.ted.style.left=(ab.x*zoom+S.px+r.left)+'px';
   dom.ted.style.top=(ab.y*zoom+S.py+r.top)+'px';
   dom.ted.style.margin='0';
@@ -4543,12 +4563,13 @@ function showArtboardContextMenu(clientX,clientY){
   };
   setTimeout(function(){document.addEventListener('click',closeHandler);document.addEventListener('contextmenu',closeHandler);},0);
 }
-if(dom.canvas)dom.canvas.addEventListener('contextmenu',function(e){
+  dom.canvas.addEventListener('contextmenu',function(e){
   if(e.target===dom.ted)return;
   var items=getSelItems();
   if(items.length){e.preventDefault();showObjContextMenu(e.clientX,e.clientY);}
   else{e.preventDefault();showArtboardContextMenu(e.clientX,e.clientY);}
 });
+}
 
 // ── ALIGNMENT ──
 function alignItems(mode){
@@ -5900,6 +5921,7 @@ function edBadgeHide(){
 // ── INIT ── (run only when dom.canvas is available; e.g. after setHostContext in bootstrap)
 function runEditorInit(){
   if(!dom.canvas)return;
+  attachCanvasListeners();
   var r=dom.canvas.getBoundingClientRect();S.px=r.width/2-300;S.py=r.height/2-200;
   applyTr();drawSnapGrid();refreshLayers();refreshProps();refreshCompPanel();
   var lastId=localStorage.getItem('dos_last');

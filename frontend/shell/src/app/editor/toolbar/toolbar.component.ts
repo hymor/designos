@@ -211,22 +211,22 @@ import { ToastService } from '../../core/services/toast.service';
 
         <button
           class="hbtn"
-          [class.dim]="!bridgeAvailable"
+          [class.dim]="!(bridgeAvailable$ | async)"
           id="undo-btn"
           title="Undo (Ctrl+Z)"
           type="button"
-          [disabled]="!bridgeAvailable"
+          [disabled]="!(bridgeAvailable$ | async)"
           (click)="onUndo()"
         >
           ↩ Undo
         </button>
         <button
           class="hbtn"
-          [class.dim]="!bridgeAvailable"
+          [class.dim]="!(bridgeAvailable$ | async)"
           id="redo-btn"
           title="Redo (Ctrl+Y)"
           type="button"
-          [disabled]="!bridgeAvailable"
+          [disabled]="!(bridgeAvailable$ | async)"
           (click)="onRedo()"
         >
           ↪ Redo
@@ -266,10 +266,10 @@ import { ToastService } from '../../core/services/toast.service';
 
         <button
           class="hbtn"
-          [class.dim]="!bridgeAvailable"
+          [class.dim]="!(bridgeAvailable$ | async)"
           id="save-btn"
           type="button"
-          [disabled]="!bridgeAvailable"
+          [disabled]="!(bridgeAvailable$ | async)"
           (click)="onSaveServer()"
         >
           💾 Save
@@ -277,10 +277,10 @@ import { ToastService } from '../../core/services/toast.service';
 
         <button
           class="hbtn"
-          [class.dim]="!bridgeAvailable"
+          [class.dim]="!(bridgeAvailable$ | async)"
           id="load-btn"
           type="button"
-          [disabled]="!bridgeAvailable"
+          [disabled]="!(bridgeAvailable$ | async)"
           (click)="onLoadServer()"
         >
           📂 Open
@@ -491,6 +491,7 @@ export class ToolbarComponent {
 
   readonly isSaving$ = this.editorFacade.isSaving$;
   readonly activeTool$ = this.editorFacade.activeTool$;
+  readonly bridgeAvailable$ = this.editorFacade.bridgeReady$;
 
   readonly projectLabel$ = this.editorFacade.activeProjectId$.pipe(
     map((id) => id || 'default'),

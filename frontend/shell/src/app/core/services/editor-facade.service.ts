@@ -156,8 +156,13 @@ export class EditorFacadeService {
 
   setActiveTool(tool: EditorToolId): void {
     this.activeToolSubject.next(tool);
-    const win: any = typeof window !== 'undefined' ? window : null;
-    const setToolFn = win && typeof win.setTool === 'function' ? win.setTool : null;
+    const api = this.designosAPI;
+    const setToolFn =
+      api && typeof api.setTool === 'function'
+        ? api.setTool.bind(api)
+        : typeof window !== 'undefined' && typeof (window as any).setTool === 'function'
+          ? (window as any).setTool
+          : null;
     if (!setToolFn) {
       console.warn('[EditorFacade] Tool change not wired to engine yet:', tool);
       return;

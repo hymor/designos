@@ -6,13 +6,14 @@ const GUIDE_THRESH = 6; // snap distance in canvas px (before zoom)
 
 export function createSmartGuides(deps) {
   const { getBBox, ns } = deps;
-  const sgG = dom.sgG;
 
   function clearGuides() {
-    sgG.innerHTML = '';
+    if (!dom.sgG) return;
+    dom.sgG.innerHTML = '';
   }
 
   function drawGuide(x1, y1, x2, y2) {
+    if (!dom.sgG) return;
     const l = ns('line');
     l.setAttribute('x1', x1);
     l.setAttribute('y1', y1);
@@ -22,7 +23,7 @@ export function createSmartGuides(deps) {
     l.setAttribute('stroke-width', 1 / S.zoom);
     l.setAttribute('stroke-dasharray', '4/' + S.zoom + ',3/' + S.zoom);
     l.setAttribute('pointer-events', 'none');
-    sgG.appendChild(l);
+    dom.sgG.appendChild(l);
   }
 
   /** Returns snap delta and draws guide lines. el = item being dragged, ax,ay = proposed absolute position. */
