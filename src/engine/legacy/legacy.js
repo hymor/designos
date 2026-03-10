@@ -6015,6 +6015,52 @@ if (typeof window !== 'undefined') {
     }
     refreshLayers();
   }
+  function updateItemFill(id, value) {
+    var T = findAny(id);
+    if (!T) return;
+    T.fill = value != null ? value : (T.fill || 'none');
+    if (S.frames.some(function(f){return f.id===id;})) renderFrame(T); else renderEl(T);
+    drawSel();
+    snapshot();
+    if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
+  }
+  function updateItemStroke(id, value) {
+    var T = findAny(id);
+    if (!T) return;
+    T.stroke = value != null ? value : 'none';
+    if (S.frames.some(function(f){return f.id===id;})) renderFrame(T); else renderEl(T);
+    drawSel();
+    snapshot();
+    if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
+  }
+  function updateItemStrokeWidth(id, value) {
+    var T = findAny(id);
+    if (!T) return;
+    T.strokeWidth = Math.max(0, typeof value === 'number' ? value : parseFloat(value) || 0);
+    if (S.frames.some(function(f){return f.id===id;})) renderFrame(T); else renderEl(T);
+    drawSel();
+    snapshot();
+    if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
+  }
+  function updateItemOpacity(id, value) {
+    var T = findAny(id);
+    if (!T) return;
+    var v = typeof value === 'number' ? value : parseFloat(value);
+    T.opacity = (v != null && !isNaN(v)) ? Math.max(0, Math.min(1, v)) : 1;
+    if (S.frames.some(function(f){return f.id===id;})) renderFrame(T); else renderEl(T);
+    drawSel();
+    snapshot();
+    if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
+  }
+  function updateItemRadius(id, value) {
+    var T = findAny(id);
+    if (!T) return;
+    T.rx = Math.max(0, typeof value === 'number' ? value : parseFloat(value) || 0);
+    if (S.frames.some(function(f){return f.id===id;})) renderFrame(T); else renderEl(T);
+    drawSel();
+    snapshot();
+    if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
+  }
   window.__designosAPI = {
     mkEl: mkEl,
     delSel: delSel,
@@ -6034,6 +6080,11 @@ if (typeof window !== 'undefined') {
     getLayersItems: getLayersItems,
     renameLayer: renameLayer,
     setLayerLocked: setLayerLocked,
-    toggleLayerCollapsed: toggleLayerCollapsed
+    toggleLayerCollapsed: toggleLayerCollapsed,
+    updateItemFill: updateItemFill,
+    updateItemStroke: updateItemStroke,
+    updateItemStrokeWidth: updateItemStrokeWidth,
+    updateItemOpacity: updateItemOpacity,
+    updateItemRadius: updateItemRadius
   };
 }

@@ -109,7 +109,12 @@ export class EditorEngine {
       x: item.x ?? 0,
       y: item.y ?? 0,
       width: item.w ?? 0,
-      height: item.h ?? 0
+      height: item.h ?? 0,
+      fill: item.fill != null ? item.fill : undefined,
+      stroke: item.stroke != null ? item.stroke : undefined,
+      strokeWidth: item.strokeWidth != null ? item.strokeWidth : undefined,
+      opacity: item.opacity != null ? item.opacity : undefined,
+      rx: item.rx != null ? item.rx : undefined
     };
   }
 

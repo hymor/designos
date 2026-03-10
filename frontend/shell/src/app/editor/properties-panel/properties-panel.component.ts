@@ -90,7 +90,6 @@ import {
                 class="pi"
                 [ngModel]="editW"
                 (ngModelChange)="editW = $event"
-                (ngModelChange)="editW = $event"
                 (blur)="onSizeBlur(p.id)"
               />
             </div>
@@ -133,19 +132,85 @@ import {
           </div>
         </div>
 
-        <div class="ps ps-disabled">
-          <div class="ps-t">Fill</div>
+        <div class="ps">
+          <div class="ps-t">Opacity</div>
           <div class="pr">
-            <span class="pl">Color</span>
-            <input class="pi pi-readonly" value="N/A" readonly />
+            <span class="pl">%</span>
+            <input
+              type="number"
+              class="pi"
+              min="0"
+              max="100"
+              [ngModel]="editOpacityPct"
+              (ngModelChange)="editOpacityPct = $event"
+              (blur)="onOpacityBlur(p.id)"
+            />
           </div>
         </div>
 
-        <div class="ps ps-disabled">
+        @if (showRadius) {
+          <div class="ps">
+            <div class="ps-t">Radius</div>
+            <div class="pr">
+              <span class="pl">⌐ rx</span>
+              <input
+                type="number"
+                class="pi"
+                min="0"
+                [ngModel]="editRadius"
+                (ngModelChange)="editRadius = $event"
+                (blur)="onRadiusBlur(p.id)"
+              />
+            </div>
+          </div>
+        }
+
+        <div class="ps">
+          <div class="ps-t">Fill</div>
+          <div class="pr">
+            <span class="pl">Color</span>
+            <input
+              type="color"
+              class="pi-color"
+              [value]="editFillHex"
+              (input)="onFillColorInput(p.id, $event)"
+            />
+            <input
+              class="pi"
+              [ngModel]="editFillHex"
+              (ngModelChange)="editFillHex = $event"
+              (blur)="onFillHexBlur(p.id)"
+            />
+          </div>
+        </div>
+
+        <div class="ps">
           <div class="ps-t">Stroke</div>
           <div class="pr">
-            <span class="pl">Width</span>
-            <input class="pi pi-readonly" value="N/A" readonly />
+            <span class="pl">Color</span>
+            <input
+              type="color"
+              class="pi-color"
+              [value]="editStrokeHex"
+              (input)="onStrokeColorInput(p.id, $event)"
+            />
+            <input
+              class="pi"
+              [ngModel]="editStrokeHex"
+              (ngModelChange)="editStrokeHex = $event"
+              (blur)="onStrokeHexBlur(p.id)"
+            />
+          </div>
+          <div class="pr">
+            <span class="pl">W</span>
+            <input
+              type="number"
+              class="pi"
+              min="0"
+              [ngModel]="editStrokeWidth"
+              (ngModelChange)="editStrokeWidth = $event"
+              (blur)="onStrokeWidthBlur(p.id)"
+            />
           </div>
         </div>
       } @else {
@@ -288,6 +353,15 @@ import {
         cursor: default;
         text-align: center;
       }
+      .pi-color {
+        width: 28px;
+        height: 24px;
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
     `,
   ],
 })
@@ -298,6 +372,11 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
   editY = 0;
   editW = 0;
   editH = 0;
+  editOpacityPct = 100;
+  editRadius = 0;
+  editFillHex = '#7b61ff';
+  editStrokeHex = '#ffffff';
+  editStrokeWidth = 0;
   private readonly destroy$ = new Subject<void>();
 
   constructor(
@@ -307,6 +386,11 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
 
   get bridgeAvailable(): boolean {
     return this.editorFacade.isBridgeAvailable();
+  }
+
+  get showRadius(): boolean {
+    const t = this.props?.type;
+    return t === 'rect' || t === 'frame';
   }
 
   ngOnInit(): void {
@@ -321,6 +405,22 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
           this.editY = this.props.y;
           this.editW = this.props.width;
           this.editH = this.props.height;
+          this.editOpacityPct =
+            this.props.opacity != null
+              ? Math.round(this.props.opacity * 100)
+              : 100;
+          this.editRadius =
+            this.props.rx != null ? this.props.rx : 0;
+          this.editFillHex =
+            this.props.fill && this.props.fill !== 'none'
+              ? this.props.fill
+              : '#7b61ff';
+          this.editStrokeHex =
+            this.props.stroke && this.props.stroke !== 'none'
+              ? this.props.stroke
+              : '#ffffff';
+          this.editStrokeWidth =
+            this.props.strokeWidth != null ? this.props.strokeWidth : 0;
         }
         this.cdr.markForCheck();
       });
@@ -338,6 +438,49 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
     const h = Number(this.editH);
     if (!Number.isFinite(w) || !Number.isFinite(h) || w < 0 || h < 0) return;
     this.editorFacade.updateSize(id, w, h);
+  }
+
+  onOpacityBlur(id: string): void {
+    const pct = Number(this.editOpacityPct);
+    if (!Number.isFinite(pct)) return;
+    const v = Math.max(0, Math.min(100, pct)) / 100;
+    this.editorFacade.updateOpacity(id, v);
+  }
+
+  onRadiusBlur(id: string): void {
+    const r = Number(this.editRadius);
+    if (!Number.isFinite(r) || r < 0) return;
+    this.editorFacade.updateRadius(id, r);
+  }
+
+  onFillColorInput(id: string, ev: Event): void {
+    const v = (ev.target as HTMLInputElement).value;
+    this.editFillHex = v;
+    this.editorFacade.updateFill(id, v);
+    this.cdr.markForCheck();
+  }
+
+  onFillHexBlur(id: string): void {
+    const v = (this.editFillHex || '').trim() || 'none';
+    this.editorFacade.updateFill(id, v);
+  }
+
+  onStrokeColorInput(id: string, ev: Event): void {
+    const v = (ev.target as HTMLInputElement).value;
+    this.editStrokeHex = v;
+    this.editorFacade.updateStroke(id, v);
+    this.cdr.markForCheck();
+  }
+
+  onStrokeHexBlur(id: string): void {
+    const v = (this.editStrokeHex || '').trim() || 'none';
+    this.editorFacade.updateStroke(id, v);
+  }
+
+  onStrokeWidthBlur(id: string): void {
+    const w = Number(this.editStrokeWidth);
+    if (!Number.isFinite(w) || w < 0) return;
+    this.editorFacade.updateStrokeWidth(id, w);
   }
 
   ngOnDestroy(): void {

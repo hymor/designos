@@ -16,6 +16,11 @@ export interface EditorElementProperties {
   y: number;
   width: number;
   height: number;
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  opacity?: number;
+  rx?: number;
 }
 
 export interface EditorSceneItem {
@@ -478,6 +483,56 @@ export class EditorFacadeService {
       this.markDirty();
     } catch (e) {
       console.warn('[EditorFacade] updateSize failed:', e);
+    }
+  }
+
+  updateFill(id: string, value: string): void {
+    const api = this.designosAPI;
+    if (api && typeof api.updateItemFill === 'function') {
+      api.updateItemFill(id, value);
+      this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
+      this.markDirty();
+    }
+  }
+
+  updateStroke(id: string, value: string): void {
+    const api = this.designosAPI;
+    if (api && typeof api.updateItemStroke === 'function') {
+      api.updateItemStroke(id, value);
+      this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
+      this.markDirty();
+    }
+  }
+
+  updateStrokeWidth(id: string, value: number): void {
+    const api = this.designosAPI;
+    if (api && typeof api.updateItemStrokeWidth === 'function') {
+      api.updateItemStrokeWidth(id, value);
+      this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
+      this.markDirty();
+    }
+  }
+
+  updateOpacity(id: string, value: number): void {
+    const api = this.designosAPI;
+    if (api && typeof api.updateItemOpacity === 'function') {
+      api.updateItemOpacity(id, value);
+      this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
+      this.markDirty();
+    }
+  }
+
+  updateRadius(id: string, value: number): void {
+    const api = this.designosAPI;
+    if (api && typeof api.updateItemRadius === 'function') {
+      api.updateItemRadius(id, value);
+      this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
+      this.markDirty();
     }
   }
 
