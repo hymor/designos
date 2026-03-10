@@ -46,6 +46,25 @@ export class EditorEngine {
     if (typeof api.delSel === 'function') api.delSel();
   }
 
+  selectElement(id, additive = false) {
+    if (!id) return;
+    const api = this._api();
+    if (!api) return;
+    if (typeof api.selectElement === 'function') {
+      api.selectElement(id, !!additive);
+      return;
+    }
+    if (typeof api.selectEl === 'function') {
+      api.selectEl(id, !!additive);
+      return;
+    }
+    if (api.S) {
+      api.S.selId = id;
+      api.S.selIds = [id];
+      if (typeof api.onSelectionChange === 'function') api.onSelectionChange();
+    }
+  }
+
   zoomIn() {
     const api = this._api();
     if (!api) return;

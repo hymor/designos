@@ -2,15 +2,17 @@ import { Component } from '@angular/core';
 import { ToolbarComponent } from '../toolbar/toolbar.component';
 import { CanvasHostComponent } from '../canvas-host/canvas-host.component';
 import { PropertiesPanelComponent } from '../properties-panel/properties-panel.component';
+import { LayersPanelComponent } from '../layers-panel/layers-panel.component';
 
 @Component({
   selector: 'app-editor-shell',
   standalone: true,
-  imports: [ToolbarComponent, CanvasHostComponent, PropertiesPanelComponent],
+  imports: [ToolbarComponent, CanvasHostComponent, PropertiesPanelComponent, LayersPanelComponent],
   template: `
     <div class="editor-shell">
       <app-toolbar></app-toolbar>
       <div class="main-area">
+        <app-layers-panel></app-layers-panel>
         <div class="canvas-area">
           <app-canvas-host></app-canvas-host>
         </div>

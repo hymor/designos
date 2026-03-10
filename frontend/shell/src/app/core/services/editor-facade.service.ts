@@ -17,6 +17,11 @@ export interface EditorElementProperties {
   height: number;
 }
 
+export interface EditorSceneItem {
+  id: string;
+  type: string;
+}
+
 /** Legacy document format: roundtrip-safe for getDocument/loadDocument. */
 export interface EditorDocument {
   version: number;
@@ -35,6 +40,7 @@ export interface EditorBridgeApi {
   init(canvas: HTMLElement | HTMLCanvasElement | null): void;
   addRectangle(): void;
   deleteSelected(): void;
+  selectElement?(id: string, additive?: boolean): void;
   zoomIn(): void;
   zoomOut(): void;
   getSelection(): EditorSelection;
@@ -69,6 +75,9 @@ const BRIDGE_UNAVAILABLE_MSG = '[EditorFacade] Editor bridge is not available.';
 export class EditorFacadeService {
   private readonly selectionSubject = new BehaviorSubject<EditorSelection>(emptySelection);
   readonly selection$: Observable<EditorSelection> = this.selectionSubject.asObservable();
+
+  private readonly sceneItemsSubject = new BehaviorSubject<EditorSceneItem[]>([]);
+  readonly sceneItems$: Observable<EditorSceneItem[]> = this.sceneItemsSubject.asObservable();
 
   /** Bridge created by init() via bootstrapLegacyEditor(canvas); primary source. */
   private bridgeInstance: EditorBridgeApi | null = null;
@@ -120,11 +129,81 @@ export class EditorFacadeService {
       this.bridge.init(canvas ?? null);
       // Sync selection state and subscribe: legacy calls __designosAPI.onSelectionChange → bridge emits 'selectionChanged'
       this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
       const onSelectionChanged = (payload: EditorSelection) => this.selectionSubject.next(payload);
-      this.bridge.on?.('selectionChanged', onSelectionChanged);
+      const onSelectionChangedWithScene = (payload: EditorSelection) => {
+        onSelectionChanged(payload);
+        this.refreshSceneItems();
+      };
+      this.bridge.on?.('selectionChanged', onSelectionChangedWithScene);
     } catch (e) {
       console.warn('[EditorFacade] init failed:', e);
     }
+  }
+
+  /** Public: return current scene items (safe). */
+  getSceneItems(): EditorSceneItem[] {
+    const docAny = this.getDocument() as unknown as any;
+    if (!docAny) return [];
+
+    const coerce = (raw: any, fallbackType: string): EditorSceneItem | null => {
+      if (!raw || typeof raw !== 'object') return null;
+      const id = typeof raw.id === 'string' ? raw.id : null;
+      if (!id) return null;
+      const t = typeof raw.type === 'string' && raw.type ? raw.type : fallbackType;
+      return { id, type: t };
+    };
+
+    const addMany = (arr: any, fallbackType: string, out: EditorSceneItem[]) => {
+      if (!Array.isArray(arr)) return;
+      for (let i = 0; i < arr.length; i++) {
+        const item = coerce(arr[i], fallbackType);
+        if (item) out.push(item);
+      }
+    };
+
+    // Preferred legacy shape (used by save/load + toolbar demo).
+    const legacyItems: EditorSceneItem[] = [];
+    addMany(docAny.frames, 'frame', legacyItems);
+    addMany(docAny.groups, 'group', legacyItems);
+
+    // If rootOrder exists, follow it for els/groups where possible.
+    if (Array.isArray(docAny.els)) {
+      const byId = new Map<string, EditorSceneItem>();
+      for (let i = 0; i < docAny.els.length; i++) {
+        const item = coerce(docAny.els[i], 'item');
+        if (item) byId.set(item.id, item);
+      }
+      if (Array.isArray(docAny.rootOrder) && docAny.rootOrder.length > 0) {
+        for (let i = 0; i < docAny.rootOrder.length; i++) {
+          const id = docAny.rootOrder[i];
+          if (typeof id !== 'string') continue;
+          const it = byId.get(id);
+          if (it) legacyItems.push(it);
+        }
+        // Append any not in rootOrder.
+        for (const it of byId.values()) {
+          if (!legacyItems.some((x) => x.id === it.id)) legacyItems.push(it);
+        }
+      } else {
+        legacyItems.push(...byId.values());
+      }
+    }
+
+    if (legacyItems.length > 0) return legacyItems;
+
+    // Fallback engine snapshot shape: { pages: [{ objects: [...] }], activePageId }
+    const pages = Array.isArray(docAny.pages) ? docAny.pages : [];
+    const activeId = typeof docAny.activePageId === 'string' ? docAny.activePageId : null;
+    const activePage = (activeId && pages.find((p: any) => p && p.id === activeId)) || pages[0] || null;
+    const objects = activePage && Array.isArray(activePage.objects) ? activePage.objects : [];
+    const out: EditorSceneItem[] = [];
+    addMany(objects, 'item', out);
+    return out;
+  }
+
+  private refreshSceneItems(): void {
+    this.sceneItemsSubject.next(this.getSceneItems());
   }
 
   /** Safe addRectangle: no-op and warn if bridge unavailable. */
@@ -135,6 +214,7 @@ export class EditorFacadeService {
     }
     try {
       this.bridge!.addRectangle();
+      this.refreshSceneItems();
     } catch (e) {
       console.warn('[EditorFacade] addRectangle failed:', e);
     }
@@ -173,8 +253,25 @@ export class EditorFacadeService {
     }
     try {
       this.bridge!.deleteSelected();
+      this.refreshSceneItems();
     } catch (e) {
       console.warn('[EditorFacade] deleteSelected failed:', e);
+    }
+  }
+
+  /** Select a single element by id (syncs canvas -> properties -> layers). */
+  selectElement(id: string): void {
+    if (!this.isBridgeAvailable()) {
+      console.warn(BRIDGE_UNAVAILABLE_MSG, 'selectElement() skipped.');
+      return;
+    }
+    if (!id) return;
+    try {
+      this.bridge!.selectElement?.(id, false);
+      this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
+    } catch (e) {
+      console.warn('[EditorFacade] selectElement failed:', e);
     }
   }
 
@@ -248,6 +345,7 @@ export class EditorFacadeService {
     try {
       this.bridge!.loadDocument?.(doc);
       this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
     } catch (e) {
       console.warn('[EditorFacade] loadDocument failed:', e);
     }
@@ -262,6 +360,7 @@ export class EditorFacadeService {
     try {
       this.bridge!.undo?.();
       this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
     } catch (e) {
       console.warn('[EditorFacade] undo failed:', e);
     }
@@ -276,6 +375,7 @@ export class EditorFacadeService {
     try {
       this.bridge!.redo?.();
       this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
     } catch (e) {
       console.warn('[EditorFacade] redo failed:', e);
     }

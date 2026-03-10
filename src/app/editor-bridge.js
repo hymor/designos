@@ -62,6 +62,11 @@ class EditorBridge {
     if (this.engine) this.engine.deleteSelected();
   }
 
+  selectElement(id, additive = false) {
+    if (this.engine) this.engine.selectElement(id, !!additive);
+    this._emitSelectionChange();
+  }
+
   zoomIn() {
     if (this.engine) this.engine.zoomIn();
   }
