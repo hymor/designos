@@ -20,6 +20,23 @@ import { EditorFacadeService } from '../../core/services/editor-facade.service';
         disabled
       />
 
+      <input
+        #projFile
+        id="proj-input"
+        type="file"
+        accept=".designos,.json,application/json"
+        style="display:none"
+        (change)="onProjectFileSelected(projFile)"
+      />
+      <input
+        #imgFile
+        id="img-input"
+        type="file"
+        accept="image/*"
+        style="display:none"
+        (change)="onImageFileSelected(imgFile)"
+      />
+
       <button class="tbtn on" id="t-select" title="Select (V)" type="button">
         <svg width="14" height="14" viewBox="0 0 14 14">
           <path d="M2.5 1.5l9 5.5-4.5 1-1.5 5z" fill="currentColor" />
@@ -187,7 +204,7 @@ import { EditorFacadeService } from '../../core/services/editor-facade.service';
           📂 Open
         </button>
 
-        <button class="exp-btn" id="exp-btn" type="button" disabled style="opacity:.35;pointer-events:none">↓ Export</button>
+        <button class="exp-btn" id="exp-btn" type="button" (click)="onExportPlaceholder()">↓ Export</button>
       </div>
     </div>
   `,
@@ -477,5 +494,23 @@ export class ToolbarComponent {
       next: () => console.log('[Toolbar] Loaded from server:', projectId),
       error: (err) => console.warn('[Toolbar] Load from server failed:', err),
     });
+  }
+
+  onProjectFileSelected(input: HTMLInputElement): void {
+    const file = input.files?.[0];
+    if (!file) return;
+    console.log('[Toolbar] Project file selected (placeholder):', file.name);
+    input.value = '';
+  }
+
+  onImageFileSelected(input: HTMLInputElement): void {
+    const file = input.files?.[0];
+    if (!file) return;
+    console.log('[Toolbar] Image file selected (placeholder):', file.name);
+    input.value = '';
+  }
+
+  onExportPlaceholder(): void {
+    console.log('[Toolbar] Export is not implemented in Angular UI yet.');
   }
 }
