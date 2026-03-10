@@ -9,8 +9,6 @@ import { EditorFacadeService, type EditorSceneItem } from '../../core/services/e
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="layers-panel">
-      <div class="panel-title">Layers</div>
-
       @if (!bridgeAvailable) {
         <p class="hint bridge-unavailable">Bridge unavailable</p>
       } @else if (items.length === 0) {
@@ -37,22 +35,15 @@ import { EditorFacadeService, type EditorSceneItem } from '../../core/services/e
   styles: [
     `
       .layers-panel {
-        padding: 0.5rem;
-        border-right: 1px solid #ddd;
-        min-width: 180px;
-        max-width: 280px;
+        padding: 0.5rem 0;
         overflow: hidden;
         display: flex;
         flex-direction: column;
         min-height: 0;
       }
-      .panel-title {
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-      }
       .hint {
         margin: 0;
-        color: #888;
+        color: var(--text3, #4a4a52);
         font-size: 0.875rem;
       }
       .bridge-unavailable {
@@ -64,7 +55,7 @@ import { EditorFacadeService, type EditorSceneItem } from '../../core/services/e
         gap: 0.25rem;
         overflow: auto;
         min-height: 0;
-        padding-right: 0.25rem;
+        padding: 0 8px 0.25rem 0;
       }
       .layer-item {
         display: grid;
@@ -74,18 +65,21 @@ import { EditorFacadeService, type EditorSceneItem } from '../../core/services/e
         width: 100%;
         text-align: left;
         padding: 0.35rem 0.4rem;
-        border: 1px solid #e2e2e2;
+        border: 1px solid var(--border, #333338);
         border-radius: 4px;
-        background: #fff;
+        background: var(--surface2, #242428);
+        color: var(--text2, #888890);
         cursor: pointer;
         font-size: 0.8125rem;
       }
       .layer-item:hover {
-        background: #f6f6f8;
+        background: var(--surface3, #2c2c30);
+        color: var(--text, #e8e8ea);
       }
       .layer-item.active {
-        border-color: #7b61ff;
-        background: rgba(123, 97, 255, 0.08);
+        border-color: var(--accent, #7b61ff);
+        background: rgba(123, 97, 255, 0.13);
+        color: var(--text, #e8e8ea);
       }
       .layer-id {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
@@ -94,9 +88,9 @@ import { EditorFacadeService, type EditorSceneItem } from '../../core/services/e
         white-space: nowrap;
       }
       .layer-type {
-        color: #666;
+        color: var(--text3, #4a4a52);
         font-size: 0.75rem;
-        background: #f0f0f2;
+        background: rgba(255, 255, 255, 0.06);
         border-radius: 999px;
         padding: 0.1rem 0.4rem;
       }

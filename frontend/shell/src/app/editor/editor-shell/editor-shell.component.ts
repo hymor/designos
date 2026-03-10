@@ -2,18 +2,18 @@ import { Component, HostListener } from '@angular/core';
 import { ToolbarComponent } from '../toolbar/toolbar.component';
 import { CanvasHostComponent } from '../canvas-host/canvas-host.component';
 import { PropertiesPanelComponent } from '../properties-panel/properties-panel.component';
-import { LayersPanelComponent } from '../layers-panel/layers-panel.component';
+import { LeftPanelComponent } from '../left-panel/left-panel.component';
 import { EditorFacadeService } from '../../core/services/editor-facade.service';
 
 @Component({
   selector: 'app-editor-shell',
   standalone: true,
-  imports: [ToolbarComponent, CanvasHostComponent, PropertiesPanelComponent, LayersPanelComponent],
+  imports: [ToolbarComponent, CanvasHostComponent, PropertiesPanelComponent, LeftPanelComponent],
   template: `
     <div class="editor-shell">
       <app-toolbar></app-toolbar>
       <div class="main-area">
-        <app-layers-panel></app-layers-panel>
+        <app-left-panel></app-left-panel>
         <div class="canvas-area">
           <app-canvas-host></app-canvas-host>
         </div>
