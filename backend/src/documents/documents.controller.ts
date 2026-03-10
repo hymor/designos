@@ -1,24 +1,21 @@
 import { Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common';
-
-/** In-memory store (no DB). Key = projectId, value = document JSON. */
-const documentStore = new Map<string, Record<string, unknown>>();
+import { DocumentStoreService } from './document-store.service';
 
 @Controller('documents')
 export class DocumentsController {
+  constructor(private readonly store: DocumentStoreService) {}
+
   /** Save document by project id. Body = full document (legacy format). */
   @Post(':id')
   save(@Param('id') id: string, @Body() document: Record<string, unknown>) {
-    if (!document || typeof document !== 'object') {
-      document = {};
-    }
-    documentStore.set(id, { ...document });
+    this.store.set(id, document ?? {});
     return { id, saved: true };
   }
 
   /** Load document by project id. */
   @Get(':id')
   get(@Param('id') id: string) {
-    const doc = documentStore.get(id);
+    const doc = this.store.get(id);
     if (doc === undefined) {
       throw new NotFoundException(`Document ${id} not found`);
     }

@@ -5521,6 +5521,8 @@ function loadProject(json,fileName,opts){
       S.zoom=Math.max(0.05,Math.min(20,data.view.zoom));
       S.px=data.view.px;
       S.py=data.view.py;
+    } else if(opts.silent){
+      S.zoom=1;S.px=0;S.py=0;
     }
     applyTr();drawSnapGrid();
     refreshLayers();refreshProps();refreshCompPanel();snapshot();
@@ -6001,6 +6003,9 @@ function runEditorInit(){
   attachCanvasListeners();
   var r=dom.canvas.getBoundingClientRect();S.px=r.width/2-300;S.py=r.height/2-200;
   applyTr();drawSnapGrid();refreshLayers();refreshProps();refreshCompPanel();
+  if(window.__designosAPI&&typeof window.__designosAPI.onDocumentChange==='function'){
+    return;
+  }
   var lastId=localStorage.getItem('dos_last');
   if(lastId){
     var saved=localStorage.getItem('dos_proj_'+lastId);
@@ -6090,6 +6095,7 @@ function loadDocument(doc) {
   var json = typeof doc === 'string' ? doc : JSON.stringify(doc);
   loadProject(json, '', { silent: true });
   if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
+  if (typeof window.__designosAPI !== 'undefined' && window.__designosAPI.refreshAfterLoad) window.__designosAPI.refreshAfterLoad();
 }
 
 // Integration: expose API for EditorEngine (Angular -> facade -> bridge -> engine)
@@ -6214,6 +6220,7 @@ if (typeof window !== 'undefined') {
     onSelectionChange: null,
     findAny: findAny,
     runEditorInit: runEditorInit,
+    refreshAfterLoad: function() { applyTr(); drawSnapGrid(); refreshLayers(); refreshProps(); },
     updateItemPosition: updateItemPosition,
     updateItemSize: updateItemSize,
     getDocument: getDocument,

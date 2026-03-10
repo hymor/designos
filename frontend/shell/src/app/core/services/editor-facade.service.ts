@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, of, switchMap, throwError, combineLatest } from 'rxjs';
 import { catchError, debounceTime, filter, finalize, tap } from 'rxjs/operators';
@@ -327,23 +328,20 @@ export class EditorFacadeService {
   }
 
   /**
-   * Init editor on canvas. Creates bridge via bootstrapLegacyEditor(canvas) on first call;
-   * reuses existing bridge on subsequent calls.
+   * Init editor on canvas. Always runs bootstrap when canvas is provided so that legacy
+   * dom and listeners are bound to the current container (required after navigate away and back).
    */
   init(canvas: HTMLCanvasElement | HTMLElement | null): void {
-    if (this.bridgeInstance != null) {
-      console.log('[EditorFacade] reusing existing bridge');
-      this._initBridge(canvas);
-      return;
-    }
-    console.log('[EditorFacade] bootstrapping editor...');
     try {
-      const bridge = bootstrapLegacyEditor(canvas ?? null, { exposeOnWindow: false });
-      this.bridgeInstance = bridge;
-      console.log('[EditorFacade] bridge created:', bridge != null ? 'ok' : 'null');
-      this._initBridge(canvas);
+      if (canvas != null) {
+        const bridge = bootstrapLegacyEditor(canvas, { exposeOnWindow: false });
+        if (this.bridgeInstance == null) this.bridgeInstance = bridge;
+        this._initBridge(canvas);
+      } else if (this.bridgeInstance != null) {
+        this._initBridge(null);
+      }
     } catch (e) {
-      console.warn('[EditorFacade] bootstrap failed:', e);
+      console.warn('[EditorFacade] init failed:', e);
     }
   }
 
@@ -1026,13 +1024,31 @@ export class EditorFacadeService {
     );
   }
 
-  /** Load document from server and apply to editor. */
+  /** Load document from server and apply to editor. On 404, load empty doc so editor does not show previous project. */
   loadFromServer(projectId?: string): Observable<void> {
     const effectiveProjectId = (projectId ?? this.getActiveProjectId()) || 'default';
+    const emptyDoc: EditorDocument = {
+      version: 8,
+      projId: effectiveProjectId,
+      projName: 'Untitled',
+      nid: 1,
+      frames: [],
+      els: [],
+      groups: [],
+      components: [],
+    };
     return this.editorApi.loadDocument(effectiveProjectId).pipe(
       switchMap((doc) => {
         this.loadDocument(doc);
         return of(undefined);
+      }),
+      catchError((err: unknown) => {
+        const status = err instanceof HttpErrorResponse ? err.status : 0;
+        if (status === 404) {
+          this.loadDocument(emptyDoc);
+          return of(undefined);
+        }
+        return throwError(() => err);
       }),
     );
   }
