@@ -287,9 +287,39 @@ import { ToastService } from '../../core/services/toast.service';
 
         <div class="tsep"></div>
 
-        <button class="hbtn dim" id="group-btn" title="Group (Ctrl+G)" type="button" disabled>⊞ Group</button>
-        <button class="hbtn dim" id="ungroup-btn" title="Ungroup (Ctrl+Shift+G)" type="button" disabled>⊟ Ungroup</button>
-        <button class="hbtn dim" id="mask-btn" title="Make Mask" type="button" disabled>⬡ Mask</button>
+        <button
+          class="hbtn"
+          [class.dim]="!(bridgeAvailable$ | async)"
+          id="group-btn"
+          title="Group (Ctrl+G)"
+          type="button"
+          [disabled]="!(bridgeAvailable$ | async)"
+          (click)="onGroup()"
+        >
+          ⊞ Group
+        </button>
+        <button
+          class="hbtn"
+          [class.dim]="!(bridgeAvailable$ | async)"
+          id="ungroup-btn"
+          title="Ungroup (Ctrl+Shift+G)"
+          type="button"
+          [disabled]="!(bridgeAvailable$ | async)"
+          (click)="onUngroup()"
+        >
+          ⊟ Ungroup
+        </button>
+        <button
+          class="hbtn"
+          [class.dim]="!(bridgeAvailable$ | async)"
+          id="mask-btn"
+          title="Make Mask"
+          type="button"
+          [disabled]="!(bridgeAvailable$ | async)"
+          (click)="onMakeMask()"
+        >
+          ⬡ Mask
+        </button>
 
         <div class="tsep"></div>
 
@@ -749,6 +779,18 @@ export class ToolbarComponent implements AfterViewInit, OnDestroy {
 
   onPaste(): void {
     this.editorFacade.paste();
+  }
+
+  onGroup(): void {
+    this.editorFacade.groupSelection();
+  }
+
+  onUngroup(): void {
+    this.editorFacade.ungroupSelection();
+  }
+
+  onMakeMask(): void {
+    this.editorFacade.makeMask();
   }
 
   /** Default project id for Save/Load Server (dev). */

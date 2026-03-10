@@ -662,6 +662,57 @@ export class EditorFacadeService {
     }
   }
 
+  /** Group selection (same as Ctrl+G). */
+  groupSelection(): void {
+    const api = this.designosAPI;
+    if (!api || typeof api.groupSel !== 'function') {
+      console.warn('[EditorFacade] groupSel not available.');
+      return;
+    }
+    try {
+      api.groupSel();
+      this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
+      this.markDirty();
+    } catch (e) {
+      console.warn('[EditorFacade] groupSelection failed:', e);
+    }
+  }
+
+  /** Ungroup selection (same as Ctrl+Shift+G). */
+  ungroupSelection(): void {
+    const api = this.designosAPI;
+    if (!api || typeof api.ungroupSel !== 'function') {
+      console.warn('[EditorFacade] ungroupSel not available.');
+      return;
+    }
+    try {
+      api.ungroupSel();
+      this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
+      this.markDirty();
+    } catch (e) {
+      console.warn('[EditorFacade] ungroupSelection failed:', e);
+    }
+  }
+
+  /** Make mask from selection (same as Ctrl+M). */
+  makeMask(): void {
+    const api = this.designosAPI;
+    if (!api || typeof api.makeMask !== 'function') {
+      console.warn('[EditorFacade] makeMask not available.');
+      return;
+    }
+    try {
+      api.makeMask();
+      this.selectionSubject.next(this.getSelection());
+      this.refreshSceneItems();
+      this.markDirty();
+    } catch (e) {
+      console.warn('[EditorFacade] makeMask failed:', e);
+    }
+  }
+
   /** Select a single element by id (syncs canvas -> properties -> layers). Additive = shift/ctrl add to selection. */
   selectElement(id: string, additive?: boolean): void {
     if (!this.isBridgeAvailable()) {

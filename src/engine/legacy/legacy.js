@@ -2170,6 +2170,13 @@ function groupSel(){
   }
 
   S.groups.push(grp);
+  // Убрать все вхождения сгруппированных id из корневого порядка и вставить группу на место первого из них
+  var rootOrder=getRootListOrder();
+  var firstIdx=rootOrder.length;
+  ids.forEach(function(id){var i=rootOrder.indexOf(id);if(i>=0&&i<firstIdx)firstIdx=i;});
+  ids.forEach(function(id){var i;while((i=rootOrder.indexOf(id))>=0)rootOrder.splice(i,1);});
+  rootOrder.splice(firstIdx,0,grp.id);
+  applyRootOrder(rootOrder);
   renderGroup(grp);
   selectEl(grp.id);refreshLayers();snapshot();
   toast('Grouped ('+ids.length+')');
@@ -4613,17 +4620,21 @@ function buildDefaultRootOrder(){
     .concat([].concat(rootF).reverse().map(function(f){return f.id;}))
     .concat([].concat(rootE).reverse().map(function(e){return e.id;}));
 }
-/** Unified root order: first id = top row in list. Uses S.rootOrder if set (after user reorder), else built from groups, frames, els. New root items (e.g. new table) are appended to S.rootOrder so they appear in the layer tree. */
+/** Unified root order: first id = top row in list. Uses S.rootOrder if set (after user reorder), else built from groups, frames, els. New root items (e.g. new table) are appended to S.rootOrder so they appear in the layer tree. Deduplicates so each id appears once. */
 function getRootListOrder(){
   var currentRoot=buildDefaultRootOrder();
   if(!S.rootOrder||S.rootOrder.length===0)return currentRoot;
   var set={}; S.rootOrder.forEach(function(id){set[id]=true;});
   var missing=currentRoot.filter(function(id){return !set[id];});
   if(missing.length>0)S.rootOrder=S.rootOrder.concat(missing);
-  return S.rootOrder.slice();
+  var list=S.rootOrder.slice();
+  var seen={}; return list.filter(function(id){if(seen[id])return false;seen[id]=true;return true;});
 }
-/** Apply new root order (array of ids). Preserves unified order: root items in S.groups/S.frames/S.els follow order in ids. */
+/** Apply new root order (array of ids). Preserves unified order: root items in S.groups/S.frames/S.els follow order in ids. Deduplicates ids (keeps first occurrence). */
 function applyRootOrder(ids){
+  var seen={},dedup=[];
+  for(var i=0;i<ids.length;i++){if(!seen[ids[i]]){seen[ids[i]]=true;dedup.push(ids[i]);}}
+  ids=dedup;
   S.rootOrder=ids.slice();
   var isGroup=function(id){return S.groups.some(function(g){return g.id===id;});};
   var isFrame=function(id){return S.frames.some(function(f){return f.id===id;});};
@@ -5444,9 +5455,11 @@ function refreshProps(){
   var del=document.getElementById('ppdel');if(del)del.addEventListener('click',delSel);
   var r2p=document.getElementById('shape-to-path-btn');if(r2p)r2p.addEventListener('click',function(){if(T.type==='rect')convertRectToPath(T);else if(T.type==='ellipse')convertEllipseToPath(T);});
   bc('make-comp-btn',makeComponent);
-  var gb=document.getElementById('group-btn');if(gb)gb.addEventListener('click',groupSel);
-  var ub2=document.getElementById('ungroup-btn');if(ub2)ub2.addEventListener('click',ungroupSel);
-  var mb2=document.getElementById('mask-btn');if(mb2)mb2.addEventListener('click',makeMask);
+  if(!(window.__designosAPI&&typeof window.__designosAPI.onDocumentChange==='function')){
+    var gb=document.getElementById('group-btn');if(gb)gb.addEventListener('click',groupSel);
+    var ub2=document.getElementById('ungroup-btn');if(ub2)ub2.addEventListener('click',ungroupSel);
+    var mb2=document.getElementById('mask-btn');if(mb2)mb2.addEventListener('click',makeMask);
+  }
   var rmb=document.getElementById('release-mask-btn');if(rmb)rmb.addEventListener('click',releaseMask);
   bc('sync-comp-btn',function(){syncInstances(T.id);});
   bc('detach-inst-btn',detachInstance);
@@ -6227,7 +6240,10 @@ if (typeof window !== 'undefined') {
     alignItems: alignItems,
     toggleSnap: toggleSnap,
     exportDocumentAsPng: exportDocumentAsPng,
-    exportDocumentAsJpg: exportDocumentAsJpg
+    exportDocumentAsJpg: exportDocumentAsJpg,
+    groupSel: groupSel,
+    ungroupSel: ungroupSel,
+    makeMask: makeMask
   };
   try {
     window.__designosAPI.copyItems = copyItems;
@@ -6235,6 +6251,9 @@ if (typeof window !== 'undefined') {
     window.__designosAPI.pasteItemsAtCenter = pasteItemsAtCenter;
     window.__designosAPI.cutItems = cutItems;
     window.__designosAPI.duplicateSelection = function(){ copyItems(); pasteItems(); };
+    window.__designosAPI.groupSel = groupSel;
+    window.__designosAPI.ungroupSel = ungroupSel;
+    window.__designosAPI.makeMask = makeMask;
     window.copyItems = copyItems;
     window.pasteItems = pasteItems;
     window.pasteItemsAtCenter = pasteItemsAtCenter;
