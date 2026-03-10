@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { Subject, distinctUntilChanged, filter, map, switchMap, take, takeUntil } from 'rxjs';
+import { Subject, distinctUntilChanged, filter, map, switchMap, take, takeUntil, tap } from 'rxjs';
 import { EditorFacadeService } from '../../core/services/editor-facade.service';
 import { EditorShellComponent } from '../../editor/editor-shell/editor-shell.component';
 
@@ -15,6 +15,13 @@ import { EditorShellComponent } from '../../editor/editor-shell/editor-shell.com
         <div class="spacer"></div>
         <div class="pid">project: {{ projectId }}</div>
       </div>
+
+      @if (loadError) {
+        <div class="banner error">
+          <div class="title">Project document not found</div>
+          <div class="msg">{{ loadError }}</div>
+        </div>
+      }
 
       <div class="content">
         <app-editor-shell></app-editor-shell>
@@ -59,6 +66,25 @@ import { EditorShellComponent } from '../../editor/editor-shell/editor-shell.com
         display: block;
         height: 100%;
       }
+      .banner {
+        padding: 0.6rem 0.75rem;
+        border-bottom: 1px solid #e2e2e2;
+        background: #fff;
+      }
+      .banner.error {
+        background: rgba(204, 0, 0, 0.04);
+        border-bottom-color: rgba(204, 0, 0, 0.2);
+      }
+      .banner .title {
+        font-weight: 650;
+        font-size: 0.9rem;
+        color: #c00;
+      }
+      .banner .msg {
+        margin-top: 0.25rem;
+        color: #555;
+        font-size: 0.85rem;
+      }
     `,
   ],
 })
@@ -68,6 +94,7 @@ export class ProjectPageComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
 
   projectId = 'default';
+  loadError: string | null = null;
 
   ngOnInit(): void {
     this.route.paramMap
@@ -76,13 +103,17 @@ export class ProjectPageComponent implements OnInit, OnDestroy {
         distinctUntilChanged(),
         takeUntil(this.destroy$),
       )
-      .subscribe((id) => (this.projectId = id));
+      .subscribe((id) => {
+        this.projectId = id;
+        this.editorFacade.setActiveProjectId(id);
+      });
 
     // Load project document only after editor bridge is ready, so we don't break current runtime flow.
     this.route.paramMap
       .pipe(
         map((p) => p.get('id') || 'default'),
         distinctUntilChanged(),
+        tap(() => (this.loadError = null)),
         switchMap((id) =>
           this.editorFacade.bridgeReady$.pipe(
             filter(Boolean),
@@ -93,7 +124,14 @@ export class ProjectPageComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$),
       )
       .subscribe({
-        error: (err) => console.warn('[ProjectPage] loadFromServer failed:', err),
+        error: (err) => {
+          const msg =
+            (err && typeof err === 'object' && 'message' in err && typeof (err as any).message === 'string'
+              ? (err as any).message
+              : String(err)) || 'Load failed';
+          this.loadError = msg;
+          console.warn('[ProjectPage] loadFromServer failed:', err);
+        },
       });
   }
 

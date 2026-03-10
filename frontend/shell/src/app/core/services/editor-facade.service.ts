@@ -83,6 +83,9 @@ export class EditorFacadeService {
   private readonly bridgeReadySubject = new BehaviorSubject<boolean>(false);
   readonly bridgeReady$: Observable<boolean> = this.bridgeReadySubject.asObservable();
 
+  private readonly activeProjectIdSubject = new BehaviorSubject<string>('default');
+  readonly activeProjectId$: Observable<string> = this.activeProjectIdSubject.asObservable();
+
   private readonly hasUnsavedChangesSubject = new BehaviorSubject<boolean>(false);
   readonly hasUnsavedChanges$: Observable<boolean> = this.hasUnsavedChangesSubject.asObservable();
 
@@ -99,6 +102,15 @@ export class EditorFacadeService {
   private bridgeInstance: EditorBridgeApi | null = null;
 
   constructor(private readonly editorApi: EditorApiService) {}
+
+  setActiveProjectId(projectId: string): void {
+    const id = (projectId || '').trim() || 'default';
+    this.activeProjectIdSubject.next(id);
+  }
+
+  getActiveProjectId(): string {
+    return this.activeProjectIdSubject.value || 'default';
+  }
 
 
   /** Bridge: instance first, then window.editorBridge as optional debug fallback. */
@@ -422,7 +434,8 @@ export class EditorFacadeService {
   }
 
   /** Save current document to server. Uses getDocument() and EditorApiService. */
-  saveToServer(projectId: string): Observable<{ id: string; saved: boolean }> {
+  saveToServer(projectId?: string): Observable<{ id: string; saved: boolean }> {
+    const effectiveProjectId = (projectId ?? this.getActiveProjectId()) || 'default';
     const doc = this.getDocument();
     if (doc == null) {
       return throwError(() => new Error('No document to save'));
@@ -430,7 +443,7 @@ export class EditorFacadeService {
     this.isSavingSubject.next(true);
     this.lastSaveSuccessSubject.next(null);
     this.lastSaveErrorSubject.next(null);
-    return this.editorApi.saveDocument(projectId, doc).pipe(
+    return this.editorApi.saveDocument(effectiveProjectId, doc).pipe(
       tap(() => {
         this.markClean();
         this.lastSaveSuccessSubject.next(true);
@@ -450,8 +463,9 @@ export class EditorFacadeService {
   }
 
   /** Load document from server and apply to editor. */
-  loadFromServer(projectId: string): Observable<void> {
-    return this.editorApi.loadDocument(projectId).pipe(
+  loadFromServer(projectId?: string): Observable<void> {
+    const effectiveProjectId = (projectId ?? this.getActiveProjectId()) || 'default';
+    return this.editorApi.loadDocument(effectiveProjectId).pipe(
       switchMap((doc) => {
         this.loadDocument(doc);
         return of(undefined);

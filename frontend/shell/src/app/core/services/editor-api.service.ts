@@ -17,6 +17,15 @@ const API_BASE = 'http://localhost:3000/api';
 export class EditorApiService {
   constructor(private readonly http: HttpClient) {}
 
+  listProjects(): Observable<{ items: Array<{ id: string; name?: string }>; total: number }> {
+    return this.http.get<{ items: Array<{ id: string; name?: string }>; total: number }>(`${API_BASE}/projects`);
+  }
+
+  createProject(name?: string): Observable<{ id: string; name: string }> {
+    const body = { name: (name ?? 'Untitled') as string };
+    return this.http.post<{ id: string; name: string }>(`${API_BASE}/projects`, body);
+  }
+
   /**
    * Save document to the server by project id.
    * Body is the full document (legacy format).

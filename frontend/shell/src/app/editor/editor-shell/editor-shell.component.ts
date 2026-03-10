@@ -83,9 +83,8 @@ export class EditorShellComponent {
     // Ctrl/Cmd+S -> save to server (allow even inside inputs; prevent browser save dialog)
     if (isMod && key === 's') {
       e.preventDefault();
-      const doc = this.editorFacade.getDocument();
-      const projectId = (doc?.projId as string) ?? 'default';
-      this.editorFacade.saveToServer(projectId).subscribe({
+      const projectId = this.editorFacade.getActiveProjectId();
+      this.editorFacade.saveToServer().subscribe({
         next: () => console.log('[Shortcuts] Saved to server:', projectId),
         error: (err) => console.warn('[Shortcuts] Save to server failed:', err),
       });

@@ -139,8 +139,7 @@ export class ToolbarComponent {
 
   /** Default project id for Save/Load Server (dev). */
   private get serverProjectId(): string {
-    const doc = this.editorFacade.getDocument();
-    return (doc?.projId as string) ?? 'default';
+    return this.editorFacade.getActiveProjectId();
   }
 
   /** Save current document to backend. */
