@@ -237,7 +237,17 @@ import { ToastService } from '../../core/services/toast.service';
 
         <div class="tsep"></div>
 
-        <button class="hbtn active dim" id="snap-btn" title="Snap to grid (G)" type="button" disabled>⊞ Snap</button>
+        <button
+          class="hbtn"
+          [class.dim]="!(bridgeAvailable$ | async)"
+          id="snap-btn"
+          title="Snap to grid (G)"
+          type="button"
+          [disabled]="!(bridgeAvailable$ | async)"
+          (click)="onSnapToggle()"
+        >
+          ⊞ Snap
+        </button>
 
         <div class="tsep"></div>
 
@@ -596,6 +606,11 @@ export class ToolbarComponent implements AfterViewInit, OnDestroy {
 
   onRedo(): void {
     this.editorFacade.redo();
+  }
+
+  onSnapToggle(): void {
+    const api = (window as unknown as { __designosAPI?: { toggleSnap?: () => void } }).__designosAPI;
+    api?.toggleSnap?.();
   }
 
   /** Default project id for Save/Load Server (dev). */

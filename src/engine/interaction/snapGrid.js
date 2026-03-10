@@ -16,6 +16,8 @@ export function createSnapGrid(deps) {
     snapCvs.style.height = r.height + 'px';
     const ctx = snapCvs.getContext('2d');
     ctx.clearRect(0, 0, r.width, r.height);
+    const b = document.getElementById('snap-btn');
+    if (b) b.classList.toggle('active', S.snap);
     if (!S.snap) return;
     const gs = S.snapSz * S.zoom;
     const ox = ((S.px % gs) + gs) % gs;
@@ -47,5 +49,5 @@ export function createSnapGrid(deps) {
   const snapBtn = document.getElementById('snap-btn');
   if (snapBtn) snapBtn.addEventListener('click', toggleSnap);
 
-  return { drawSnapGrid };
+  return { drawSnapGrid, toggleSnap };
 }

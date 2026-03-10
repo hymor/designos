@@ -106,7 +106,7 @@ var findFrame=_ft.findFrame,findEl=_ft.findEl,isFrameId=_ft.isFrameId,isElId=_ft
 var removeDomForItem=_ft.removeDomForItem,removeSubtreeOfFrame=_ft.removeSubtreeOfFrame;
 
 var _snapGrid=createSnapGrid({toast});
-var drawSnapGrid=_snapGrid.drawSnapGrid;
+var drawSnapGrid=_snapGrid.drawSnapGrid, toggleSnap=_snapGrid.toggleSnap;
 
 var _grad=createGradients({ns});
 var buildGradDef=_grad.buildGradDef,defGrad=_grad.defGrad,hexToRgba=_grad.hexToRgba,gradCSS=_grad.gradCSS;
@@ -3267,29 +3267,23 @@ function attachCanvasListeners(){
     }
     // ---- /MULTI DRAG ----
     var pt=svgPt(e),dx=pt.x-S.dragS.mx,dy=pt.y-S.dragS.my;
-    if(S.dragging&&S.dragEl){
-      console.log('drag move', S.dragEl.type, S.dragEl.id, dx, dy);
-    }
     var isFr=S.frames.indexOf(S.dragEl)>=0;
     if(isFr){
-      console.log('drag: isFr branch', S.dragEl.id);
       var nx=snapV(S.dragS.ox+dx);
       var ny=snapV(S.dragS.oy+dy);
       var sg=applySmartGuides(S.dragEl,nx,ny);
-      console.log('before move', S.dragEl.type, S.dragEl.x, S.dragEl.y);
       S.dragEl.x=nx+sg.dx;
       S.dragEl.y=ny+sg.dy;
-      console.log('after move', S.dragEl.type, S.dragEl.x, S.dragEl.y);
       renderFrame(S.dragEl);
     } else {
       var nx,ny,absX,absY;
       var isGroup=S.groups.indexOf(S.dragEl)>=0;
       var isPath=S.dragEl.type==='path';
-      console.log('single-drag else', S.dragEl.id, S.dragEl.type, 'isGroup='+isGroup, 'isPath='+isPath, 'frameId='+S.dragEl.frameId);
       if(isGroup){
-        console.log('drag: isGroup branch', S.dragEl.id);
         // Move group: translate SVG transform, update state on mouseup
         nx=snapV(S.dragS.ox+dx); ny=snapV(S.dragS.oy+dy);
+        var sgGrp=applySmartGuides(S.dragEl,nx,ny);
+        nx+=sgGrp.dx; ny+=sgGrp.dy;
         var ddx=nx-S.dragS.ox, ddy=ny-S.dragS.oy;
         var domGG=document.getElementById('gg'+S.dragEl.id);
         if(domGG){
@@ -3298,7 +3292,6 @@ function attachCanvasListeners(){
         }
         absX=nx; absY=ny;
       } else if(isPath){
-        console.log('drag: isPath branch', S.dragEl.id);
         // Move path: translate SVG transform, preserve rotation; update pts on mouseup
         nx=snapV(S.dragS.ox+dx); ny=snapV(S.dragS.oy+dy);
         var ddxp=nx-S.dragS.ox, ddyp=ny-S.dragS.oy;
@@ -3332,27 +3325,20 @@ function attachCanvasListeners(){
         if(pf&&fc){
           var rawRelX=S.dragS.rx+dx, rawRelY=S.dragS.ry+dy;
           nx=snapV(rawRelX); ny=snapV(rawRelY);
-          console.log('before move (inFrame)', S.dragEl.id, S.dragEl.x, S.dragEl.y);
           S.dragEl.x=nx; S.dragEl.y=ny;
-          console.log('after move (inFrame)', S.dragEl.id, S.dragEl.x, S.dragEl.y);
           absX=pf.x+nx; absY=pf.y+ny;
         } else {
           nx=snapV(S.dragS.ox+dx); ny=snapV(S.dragS.oy+dy);
           var sg=applySmartGuides(S.dragEl,nx,ny);
-          console.log('before move (pf null)', S.dragEl.id, S.dragEl.x, S.dragEl.y);
           S.dragEl.x=nx+sg.dx; S.dragEl.y=ny+sg.dy;
-          console.log('after move (pf null)', S.dragEl.id, S.dragEl.x, S.dragEl.y);
           absX=S.dragEl.x; absY=S.dragEl.y;
         }
       } else {
         nx=snapV(S.dragS.ox+dx); ny=snapV(S.dragS.oy+dy);
-        console.log('before move (loose)', S.dragEl.id, S.dragEl.x, S.dragEl.y, 'nx=', nx, 'ny=', ny);
         try {
           var sg=applySmartGuides(S.dragEl,nx,ny);
           S.dragEl.x=nx+sg.dx; S.dragEl.y=ny+sg.dy;
-          console.log('after move (loose)', S.dragEl.id, S.dragEl.x, S.dragEl.y);
         } catch(err){
-          console.error('loose drag error', err);
           S.dragEl.x=nx; S.dragEl.y=ny;
         }
         absX=S.dragEl.x; absY=S.dragEl.y;
@@ -6180,7 +6166,8 @@ if (typeof window !== 'undefined') {
     openSvgPasteChoice: null,
     exportSelectedAsPng: exportSelectedAsPng,
     addImageFromDataUrl: addImageFromDataUrl,
-    alignItems: alignItems
+    alignItems: alignItems,
+    toggleSnap: toggleSnap
   };
   try {
     window.__designosAPI.copyItems = copyItems;

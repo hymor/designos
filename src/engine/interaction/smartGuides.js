@@ -30,8 +30,9 @@ export function createSmartGuides(deps) {
   function applySmartGuides(el, ax, ay) {
     clearGuides();
     if (!S.smartGuides) return { dx: 0, dy: 0 };
-    const ew = el.w,
-      eh = el.h;
+    const box = getBBox(el);
+    const ew = box.w;
+    const eh = box.h;
     const eL = ax,
       eR = ax + ew,
       eCx = ax + ew / 2,
