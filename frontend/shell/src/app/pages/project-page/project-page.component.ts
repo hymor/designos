@@ -3,11 +3,13 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject, distinctUntilChanged, filter, map, switchMap, take, takeUntil, tap } from 'rxjs';
 import { EditorFacadeService } from '../../core/services/editor-facade.service';
 import { EditorShellComponent } from '../../editor/editor-shell/editor-shell.component';
+import { ToastComponent } from '../../shared/toast/toast.component';
+import { ToastService } from '../../core/services/toast.service';
 
 @Component({
   selector: 'app-project-page',
   standalone: true,
-  imports: [RouterLink, EditorShellComponent],
+  imports: [RouterLink, EditorShellComponent, ToastComponent],
   template: `
     <div class="page">
       <div class="topbar">
@@ -26,6 +28,8 @@ import { EditorShellComponent } from '../../editor/editor-shell/editor-shell.com
       <div class="content">
         <app-editor-shell></app-editor-shell>
       </div>
+
+      <app-toast></app-toast>
     </div>
   `,
   styles: [
@@ -91,6 +95,7 @@ import { EditorShellComponent } from '../../editor/editor-shell/editor-shell.com
 export class ProjectPageComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly editorFacade = inject(EditorFacadeService);
+  private readonly toast = inject(ToastService);
   private readonly destroy$ = new Subject<void>();
 
   projectId = 'default';
@@ -130,6 +135,7 @@ export class ProjectPageComponent implements OnInit, OnDestroy {
               ? (err as any).message
               : String(err)) || 'Load failed';
           this.loadError = msg;
+          this.toast.show('Failed to load project: ' + msg, 'error');
           console.warn('[ProjectPage] loadFromServer failed:', err);
         },
       });

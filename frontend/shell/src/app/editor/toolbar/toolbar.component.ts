@@ -3,6 +3,7 @@ import { Component, inject } from '@angular/core';
 import { combineLatest, map, of, startWith } from 'rxjs';
 import { Router } from '@angular/router';
 import { EditorFacadeService } from '../../core/services/editor-facade.service';
+import { ToastService } from '../../core/services/toast.service';
 
 @Component({
   selector: 'app-toolbar',
@@ -404,6 +405,7 @@ import { EditorFacadeService } from '../../core/services/editor-facade.service';
 export class ToolbarComponent {
   private readonly editorFacade = inject(EditorFacadeService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   readonly isSaving$ = this.editorFacade.isSaving$;
 
@@ -482,8 +484,16 @@ export class ToolbarComponent {
       next: () => {
         console.log('[Toolbar] Saved to server:', projectId);
         console.log('[Toolbar] Проверка: GET http://localhost:3000/api/documents/' + projectId);
+        this.toast.show('Saved project ' + projectId, 'info');
       },
-      error: (err) => console.warn('[Toolbar] Save to server failed:', err),
+      error: (err) => {
+        console.warn('[Toolbar] Save to server failed:', err);
+        const msg =
+          (err && typeof err === 'object' && 'message' in err && typeof (err as any).message === 'string'
+            ? (err as any).message
+            : String(err)) || 'Save failed';
+        this.toast.show('Save failed: ' + msg, 'error');
+      },
     });
   }
 
@@ -491,8 +501,18 @@ export class ToolbarComponent {
   onLoadServer(): void {
     const projectId = this.serverProjectId;
     this.editorFacade.loadFromServer(projectId).subscribe({
-      next: () => console.log('[Toolbar] Loaded from server:', projectId),
-      error: (err) => console.warn('[Toolbar] Load from server failed:', err),
+      next: () => {
+        console.log('[Toolbar] Loaded from server:', projectId);
+        this.toast.show('Loaded project ' + projectId, 'info');
+      },
+      error: (err) => {
+        console.warn('[Toolbar] Load from server failed:', err);
+        const msg =
+          (err && typeof err === 'object' && 'message' in err && typeof (err as any).message === 'string'
+            ? (err as any).message
+            : String(err)) || 'Load failed';
+        this.toast.show('Load failed: ' + msg, 'error');
+      },
     });
   }
 
@@ -512,5 +532,6 @@ export class ToolbarComponent {
 
   onExportPlaceholder(): void {
     console.log('[Toolbar] Export is not implemented in Angular UI yet.');
+    this.toast.show('Export is not implemented yet', 'info');
   }
 }
