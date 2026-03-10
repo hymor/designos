@@ -747,12 +747,12 @@ document.addEventListener('keydown',function(e){
     if(e.key==='z'&&!e.shiftKey){e.preventDefault();undo();}
     if(e.key==='z'&&e.shiftKey){e.preventDefault();redo();}
     if(e.key==='y'){e.preventDefault();redo();}
-    if(e.key==='c'){e.preventDefault();copyItems();}
-    if(e.key==='x'){e.preventDefault();cutItems();}
-    if(e.key==='v'){if(S.clipboard.length){e.preventDefault();pasteItems();}}
-    if(e.key==='d'){e.preventDefault();copyItems();pasteItems();}
+    if(e.key==='c'){e.preventDefault();var cpy=window.copyItems||(window.__designosAPI&&window.__designosAPI.copyItems);if(cpy)cpy();}
+    if(e.key==='x'){e.preventDefault();var cut=window.cutItems||(window.__designosAPI&&window.__designosAPI.cutItems);if(cut)cut();}
+    if(e.key==='v'){if(S.clipboard.length){e.preventDefault();var pst=window.pasteItems||(window.__designosAPI&&window.__designosAPI.pasteItems);if(pst)pst();}}
+    if(e.key==='d'){e.preventDefault();var dup=window.duplicateSelection||(window.__designosAPI&&window.__designosAPI.duplicateSelection);if(dup)dup();else{var cpy=window.copyItems||(window.__designosAPI&&window.__designosAPI.copyItems);var pst=window.pasteItems||(window.__designosAPI&&window.__designosAPI.pasteItems);if(cpy&&pst){cpy();pst();}}}
     if(e.key==='k'||e.key==='K'){e.preventDefault();makeComponent();}
-    if(e.key==='g'||e.key==='G'){e.preventDefault();if(e.shiftKey)ungroupSel();else groupSel();}
+    if(e.key==='g'||e.key==='G'){e.preventDefault();var grp=window.groupSel||(window.__designosAPI&&window.__designosAPI.groupSel);var ungrp=window.ungroupSel||(window.__designosAPI&&window.__designosAPI.ungroupSel);if(e.shiftKey){if(ungrp)ungrp();}else{if(grp)grp();}}
     if(e.key==='m'||e.key==='M'){e.preventDefault();makeMask();}
     if(e.key==='['){e.preventDefault();zOrder(e.shiftKey?'bot':'bwd');}
   }
@@ -4490,6 +4490,13 @@ function pasteItemsAtCenter(){
 var copyBtn=document.getElementById('copy-btn');if(copyBtn)copyBtn.addEventListener('click',copyItems);
 var cutBtn=document.getElementById('cut-btn');if(cutBtn)cutBtn.addEventListener('click',cutItems);
 var pasteBtn=document.getElementById('paste-btn');if(pasteBtn)pasteBtn.addEventListener('click',pasteItems);
+if(typeof window!=='undefined'){
+  window.copyItems=copyItems;
+  window.pasteItems=pasteItems;
+  window.pasteItemsAtCenter=pasteItemsAtCenter;
+  window.cutItems=cutItems;
+  window.duplicateSelection=function(){copyItems();pasteItems();};
+}
 
 // ── OBJECT CONTEXT MENU (dropdown) ──
 var objCtxMenuClose=null;
