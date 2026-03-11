@@ -53,22 +53,7 @@ function minimalEmptyDocument(projId: string, projName: string): Record<string, 
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async ensureDefaultUserId(): Promise<number> {
-    // No auth yet: use first user or create a single local user.
-    const existing = await this.prisma.user.findFirst({ select: { id: true } });
-    if (existing) return existing.id;
-    const created = await this.prisma.user.create({
-      data: {
-        email: 'demo@designos.local',
-        passwordHash: 'not-set',
-      },
-      select: { id: true },
-    });
-    return created.id;
-  }
-
-  async list(): Promise<ListProjectsResult> {
-    const userId = await this.ensureDefaultUserId();
+  async listForUser(userId: number): Promise<ListProjectsResult> {
     const projects = await this.prisma.project.findMany({
       where: { ownerUserId: userId },
       orderBy: { updatedAt: 'desc' },
@@ -82,8 +67,7 @@ export class ProjectsService {
     return { items, total: items.length };
   }
 
-  async create(name?: string): Promise<CreateProjectResult> {
-    const userId = await this.ensureDefaultUserId();
+  async createForUser(userId: number, name?: string): Promise<CreateProjectResult> {
     const displayName = typeof name === 'string' && name.trim().length > 0 ? name.trim() : 'Untitled';
 
     const created = await this.prisma.$transaction(async (tx) => {
