@@ -223,6 +223,7 @@ import {
                 class="pi pi-select"
                 [ngModel]="editFontFamily"
                 (ngModelChange)="onFontFamilyChange(p.id, $event)"
+                (focus)="loadLocalFontsIfNeeded()"
               >
                 @for (opt of fontOptions; track opt.value) {
                   <option [value]="opt.value">{{ opt.label }}</option>
@@ -452,7 +453,7 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
   editLineHeight = 1.2;
   editFontFamily = 'system-ui,sans-serif';
   editLetterSpacing = 0;
-  readonly fontOptions: { value: string; label: string }[] = [
+  fontOptions: { value: string; label: string }[] = [
     { value: 'system-ui,sans-serif', label: 'System UI' },
     { value: 'Arial', label: 'Arial' },
     { value: 'Helvetica', label: 'Helvetica' },
@@ -463,7 +464,27 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
     { value: '"Trebuchet MS",sans-serif', label: 'Trebuchet MS' },
     { value: '"Courier New",monospace', label: 'Courier New' },
     { value: 'monospace', label: 'Monospace' },
+    { value: 'Inter', label: 'Inter' },
+    { value: 'Roboto', label: 'Roboto' },
+    { value: '"Open Sans",sans-serif', label: 'Open Sans' },
+    { value: 'Lato', label: 'Lato' },
+    { value: 'Montserrat', label: 'Montserrat' },
+    { value: 'Oswald', label: 'Oswald' },
+    { value: 'Source Sans 3', label: 'Source Sans 3' },
+    { value: 'PT Sans', label: 'PT Sans' },
+    { value: 'Ubuntu', label: 'Ubuntu' },
+    { value: 'Playfair Display', label: 'Playfair Display' },
+    { value: 'Merriweather', label: 'Merriweather' },
+    { value: 'Palatino Linotype', label: 'Palatino Linotype' },
+    { value: 'Garamond', label: 'Garamond' },
+    { value: 'Bookman', label: 'Bookman' },
+    { value: 'Comic Sans MS', label: 'Comic Sans MS' },
+    { value: 'Impact', label: 'Impact' },
+    { value: 'Consolas', label: 'Consolas' },
+    { value: 'Monaco', label: 'Monaco' },
+    { value: '"Lucida Console",monospace', label: 'Lucida Console' },
   ];
+  private localFontsLoadRequested = false;
   private readonly destroy$ = new Subject<void>();
 
   constructor(
@@ -482,6 +503,36 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
 
   get isText(): boolean {
     return this.props?.type === 'text';
+  }
+
+  /** Загружает шрифты с компьютера (Font Access API в Chrome/Edge). Вызывается при первом открытии списка шрифтов. */
+  loadLocalFontsIfNeeded(): void {
+    if (this.localFontsLoadRequested) return;
+    this.localFontsLoadRequested = true;
+    const win = typeof window !== 'undefined' ? window : null;
+    const queryLocalFonts = win && (win as unknown as { queryLocalFonts?: () => Promise<{ family: string }[]> }).queryLocalFonts;
+    if (typeof queryLocalFonts !== 'function') return;
+    queryLocalFonts()
+      .then((fonts) => {
+        const seen = new Set<string>();
+        const local: { value: string; label: string }[] = [];
+        for (const f of fonts) {
+          const family = f.family?.trim();
+          if (!family || seen.has(family)) continue;
+          seen.add(family);
+          const value = /[\s,]/.test(family) ? `"${family}"` : family;
+          local.push({ value, label: family });
+        }
+        local.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+        const defaults = this.fontOptions.filter((o) => ['system-ui,sans-serif', 'monospace'].includes(o.value));
+        const defaultFamilies = new Set(defaults.map((d) => d.label));
+        const rest = local.filter((o) => !defaultFamilies.has(o.label));
+        this.fontOptions = [...defaults, ...rest];
+        this.cdr.markForCheck();
+      })
+      .catch(() => {
+        // Нет доступа (permission denied) или ошибка — оставляем текущий список
+      });
   }
 
   /** Округление до 1 знака после запятой, доли после второго знака — в большую сторону (для отображения X,Y,W,H). */
