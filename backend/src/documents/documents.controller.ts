@@ -1,24 +1,21 @@
-import { Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common';
-import { DocumentStoreService } from './document-store.service';
+import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import { DocumentsService } from './documents.service';
 
 @Controller('documents')
 export class DocumentsController {
-  constructor(private readonly store: DocumentStoreService) {}
+  constructor(private readonly documents: DocumentsService) {}
 
   /** Save document by project id. Body = full document (legacy format). */
   @Post(':id')
   save(@Param('id') id: string, @Body() document: Record<string, unknown>) {
-    this.store.set(id, document ?? {});
-    return { id, saved: true };
+    // Backward-compatible endpoint for current frontend: POST /documents/:id
+    return this.documents.upsertByExternalProjectId(id, (document ?? {}) as Record<string, unknown>);
   }
 
   /** Load document by project id. */
   @Get(':id')
   get(@Param('id') id: string) {
-    const doc = this.store.get(id);
-    if (doc === undefined) {
-      throw new NotFoundException(`Document ${id} not found`);
-    }
-    return doc;
+    // Backward-compatible endpoint for current frontend: GET /documents/:id
+    return this.documents.getByExternalProjectId(id);
   }
 }

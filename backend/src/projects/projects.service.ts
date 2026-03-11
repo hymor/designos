@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { DocumentStoreService } from '../documents/document-store.service';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 
 export interface ProjectItem {
   id: string;
@@ -16,43 +17,87 @@ export interface CreateProjectResult {
   name: string;
 }
 
-/** Minimal document shape accepted by legacy loadProject. */
-function minimalDocument(projName: string): Record<string, unknown> {
+function encodeProjectId(dbId: number): string {
+  return `p-${dbId}`;
+}
+
+function decodeProjectId(externalId: string): number | null {
+  const m = /^p-(\d+)$/.exec(String(externalId || '').trim());
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Minimal document shape accepted by legacy getDocument/loadDocument. */
+function minimalEmptyDocument(projId: string, projName: string): Record<string, unknown> {
   return {
+    version: 8,
+    projId,
+    projName,
+    nid: 1,
     frames: [],
     els: [],
-    nid: 1,
+    groups: [],
     components: [],
-    projName,
+    rootOrder: [],
+    view: { zoom: 1, px: 0, py: 0 },
   };
 }
 
-function projectName(doc: Record<string, unknown>): string {
-  const name = doc?.projName ?? doc?.name;
-  return typeof name === 'string' && name.length > 0 ? name : 'Untitled';
-}
-
 /**
- * Projects service (variant 3: list from document store, create writes minimal doc).
- * Later can be replaced by DB-backed implementation without changing controller or API.
+ * Projects service backed by Prisma/Postgres.
+ * Keeps external id format "p-<number>" to avoid breaking current frontend routing/API.
  */
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly documentStore: DocumentStoreService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  list(): ListProjectsResult {
-    const entries = this.documentStore.entries();
-    const items: ProjectItem[] = entries.map(([id, doc]) => ({
-      id,
-      name: projectName(doc),
-    }));
+  private async ensureDefaultUserId(): Promise<number> {
+    // No auth yet: use first user or create a single local user.
+    const existing = await this.prisma.user.findFirst({ select: { id: true } });
+    if (existing) return existing.id;
+    const created = await this.prisma.user.create({
+      data: {
+        email: 'demo@designos.local',
+        passwordHash: 'not-set',
+      },
+      select: { id: true },
+    });
+    return created.id;
+  }
+
+  async list(): Promise<ListProjectsResult> {
+    const userId = await this.ensureDefaultUserId();
+    const projects = await this.prisma.project.findMany({
+      where: { ownerUserId: userId },
+      orderBy: { updatedAt: 'desc' },
+      select: { id: true, name: true },
+    });
+    const items: ProjectItem[] = projects.map((p) => ({ id: encodeProjectId(p.id), name: p.name }));
     return { items, total: items.length };
   }
 
-  create(name?: string): CreateProjectResult {
-    const displayName = typeof name === 'string' && name.length > 0 ? name : 'Untitled';
-    const id = `p-${Date.now()}`;
-    this.documentStore.set(id, minimalDocument(displayName));
-    return { id, name: displayName };
+  async create(name?: string): Promise<CreateProjectResult> {
+    const userId = await this.ensureDefaultUserId();
+    const displayName = typeof name === 'string' && name.trim().length > 0 ? name.trim() : 'Untitled';
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      const project = await tx.project.create({
+        data: { ownerUserId: userId, name: displayName },
+        select: { id: true, name: true },
+      });
+      const externalId = encodeProjectId(project.id);
+      await tx.document.create({
+        data: {
+          projectId: project.id,
+          version: 8,
+          jsonData: minimalEmptyDocument(externalId, project.name) as unknown as Prisma.InputJsonValue,
+        },
+        select: { id: true },
+      });
+      return { project, externalId };
+    });
+
+    return { id: created.externalId, name: created.project.name };
   }
 }
