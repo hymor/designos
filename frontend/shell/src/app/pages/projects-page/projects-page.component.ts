@@ -1,4 +1,4 @@
-import { AsyncPipe } from '@angular/common';
+import { AsyncPipe, DatePipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
@@ -7,7 +7,7 @@ import { EditorApiService } from '../../core/services/editor-api.service';
 @Component({
   selector: 'app-projects-page',
   standalone: true,
-  imports: [RouterLink, AsyncPipe],
+  imports: [RouterLink, AsyncPipe, DatePipe],
   template: `
     <div class="page">
       <header class="topbar">
@@ -32,7 +32,9 @@ import { EditorApiService } from '../../core/services/editor-api.service';
                 </div>
                 <div class="card-body">
                   <span class="card-name">{{ p.name || 'Untitled' }}</span>
-                  <span class="card-meta">{{ p.id }}</span>
+                  <span class="card-meta">
+                    {{ p.updatedAt ? (p.updatedAt | date: 'short') : 'never saved' }}
+                  </span>
                 </div>
               </a>
             }
@@ -214,7 +216,7 @@ export class ProjectsPageComponent {
   private readonly api = inject(EditorApiService);
   private readonly router = inject(Router);
 
-  readonly projects$ = new BehaviorSubject<Array<{ id: string; name?: string }>>([]);
+  readonly projects$ = new BehaviorSubject<Array<{ id: string; name?: string; updatedAt?: string | Date }>>([]);
   readonly loading$ = new BehaviorSubject<boolean>(true);
   readonly error$ = new BehaviorSubject<string | null>(null);
 

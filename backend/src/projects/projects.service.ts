@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export interface ProjectItem {
   id: string;
   name?: string;
+  updatedAt?: Date;
 }
 
 export interface ListProjectsResult {
@@ -71,9 +72,13 @@ export class ProjectsService {
     const projects = await this.prisma.project.findMany({
       where: { ownerUserId: userId },
       orderBy: { updatedAt: 'desc' },
-      select: { id: true, name: true },
+      select: { id: true, name: true, updatedAt: true },
     });
-    const items: ProjectItem[] = projects.map((p) => ({ id: encodeProjectId(p.id), name: p.name }));
+    const items: ProjectItem[] = projects.map((p) => ({
+      id: encodeProjectId(p.id),
+      name: p.name,
+      updatedAt: p.updatedAt,
+    }));
     return { items, total: items.length };
   }
 
