@@ -469,6 +469,7 @@ import { Router } from '@angular/router';
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        font-family: 'Segoe UI', Helvetica, sans-serif;
       }
       .tbtn:hover {
         background: var(--surface3);
@@ -569,6 +570,7 @@ import { Router } from '@angular/router';
         cursor: pointer;
         white-space: nowrap;
         flex-shrink: 0;
+        font-family: 'Segoe UI', Helvetica, sans-serif;
       }
       .hbtn:hover {
         background: var(--surface3);

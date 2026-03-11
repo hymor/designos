@@ -65,7 +65,7 @@ import { EditorApiService } from '../../core/services/editor-api.service';
         height: 100%;
         min-height: 100vh;
         background: var(--proj-bg);
-        font-family: system-ui, sans-serif;
+        font-family: 'Segoe UI', Helvetica, sans-serif;
         color: var(--proj-text);
       }
       .page {

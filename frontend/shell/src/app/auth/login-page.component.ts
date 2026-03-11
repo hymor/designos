@@ -41,7 +41,7 @@ import { AuthService } from '../core/services/auth.service';
         justify-content: center;
         background: #111112;
         color: #e8e8ea;
-        font-family: system-ui, sans-serif;
+        font-family: 'Segoe UI', Helvetica, sans-serif;
       }
       .auth-card {
         width: 320px;
