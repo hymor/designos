@@ -12,6 +12,11 @@ export class AuthService {
   constructor(private readonly api: AuthApiService) {
     const token = this.getToken();
     if (token) {
+      // Optimistically decode JWT payload to show email immediately after reload.
+      const decoded = this.decodeToken(token);
+      if (decoded && typeof decoded.email === 'string') {
+        this.currentUserSubject.next({ id: decoded.sub as number, email: decoded.email });
+      }
       this.refreshMe().subscribe();
     }
   }
@@ -26,6 +31,17 @@ export class AuthService {
       localStorage.setItem(TOKEN_KEY, token);
     } else {
       localStorage.removeItem(TOKEN_KEY);
+    }
+  }
+
+  private decodeToken(token: string): { sub?: number; email?: string } | null {
+    try {
+      const parts = token.split('.');
+      if (parts.length < 2) return null;
+      const payload = JSON.parse(atob(parts[1]));
+      return payload;
+    } catch {
+      return null;
     }
   }
 

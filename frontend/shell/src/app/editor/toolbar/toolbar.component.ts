@@ -7,6 +7,8 @@ import { EditorFacadeService, EditorToolId } from '../../core/services/editor-fa
 import { RecentModalService } from '../../core/services/recent-modal.service';
 import { TableCreateModalService } from '../../core/services/table-create-modal.service';
 import { ToastService } from '../../core/services/toast.service';
+import { AuthService } from '../../core/services/auth.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-toolbar',
@@ -14,8 +16,14 @@ import { ToastService } from '../../core/services/toast.service';
   imports: [AsyncPipe, NgClass, NgIf],
   template: `
     <div id="topbar">
-      <div class="logo" (click)="onLogoClick()" title="Projects">DesignOS</div>
-      <span style="color:var(--border);font-size:13px;flex-shrink:0">/</span>
+      <div class="user-box">
+        <div class="user-avatar">{{ (userInitial$ | async) || '?' }}</div>
+        <div class="user-meta">
+          <div class="user-email">{{ (userEmail$ | async) || 'Anonymous' }}</div>
+          <button type="button" class="user-signout" (click)="onSignOut()">Sign out</button>
+        </div>
+      </div>
+      <span style="color:var(--border);font-size:13px;flex-shrink:0;margin-left:8px;margin-right:4px">/</span>
       <input
         id="proj-name-input"
         #projName
@@ -590,6 +598,48 @@ import { ToastService } from '../../core/services/toast.service';
       .exp-btn:hover {
         opacity: 0.85;
       }
+      .user-box {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .user-avatar {
+        width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        background: rgba(123, 97, 255, 0.16);
+        border: 1px solid var(--accent);
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .user-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .user-email {
+        font-size: 11px;
+        color: var(--text);
+      }
+      .user-signout {
+        padding: 0;
+        margin: 0;
+        border: none;
+        background: none;
+        color: var(--text3);
+        font-size: 10px;
+        text-align: left;
+        cursor: pointer;
+      }
+      .user-signout:hover {
+        color: var(--text2);
+        text-decoration: underline;
+      }
       .exp-dropdown-wrap {
         position: relative;
         display: inline-flex;
@@ -632,10 +682,17 @@ export class ToolbarComponent implements AfterViewInit, OnDestroy {
   private readonly recentModalService = inject(RecentModalService);
   private readonly tableCreateModalService = inject(TableCreateModalService);
   private readonly toast = inject(ToastService);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
 
   readonly isSaving$ = this.editorFacade.isSaving$;
   readonly activeTool$ = this.editorFacade.activeTool$;
   readonly bridgeAvailable$ = this.editorFacade.bridgeReady$;
+
+  readonly userEmail$ = this.auth.currentUser$.pipe(map((u) => u?.email ?? ''));
+  readonly userInitial$ = this.userEmail$.pipe(
+    map((email) => (email ? email.charAt(0).toUpperCase() : '?')),
+  );
 
   readonly projectLabel$ = this.editorFacade.activeProjectId$.pipe(
     map((id) => id || 'default'),
@@ -791,6 +848,11 @@ export class ToolbarComponent implements AfterViewInit, OnDestroy {
 
   onMakeMask(): void {
     this.editorFacade.makeMask();
+  }
+
+  onSignOut(): void {
+    this.auth.logout();
+    this.router.navigate(['/auth/login']);
   }
 
   /** Default project id for Save/Load Server (dev). */
