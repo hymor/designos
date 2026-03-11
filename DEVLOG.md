@@ -1,5 +1,44 @@
 # Devlog
 
+## 2026-03-10
++ finnaly got the connection with angular and interface
++ angular frontend controls editor runtime
++ properties of objects are active
++ selection and properties panel working
++ saving state enabled
++ scene save/load working in editor
++ save status and dirty state update
++ snap shortcut G, snapping to grid for objects, toolbar button
++ align functionality added
++ document save and load working with nest backend
++ undo\redo functions
++ server save
++ scene save/load working in editor
++ Ctrl+C, Ctrl+D, Ctrl+X, Ctrl+V enabled
++ removed white holes on both panels, also made same sizes for panel - bounces fixed
++ Multi-select и band selection
++ Final migration of UI
++ import/export objects
++ Eyedropper Badge
++ text edit workflow enabled
++ Floating overlays
++ Properties parity by sections
++ Layers functionality parity
++ tools system
++ Context menu / floating overlays
++ Dialogs / overlays / floating UI
++ saving project by default buttons of UI
++ tabs in angular
++ Properties parity
++ Left panel parity
++ ToolbarComponent angular enabled
++ undo redo and document flow working
++ saving projects to server
++ projects management added
++ server saving statuses
++ ctrl+z, ctrl+s, ctrl+y and delete works
++ layers link established
+
 ## 2026-03-09
 + tables basic functionality added
 + fill and stroke added to tables

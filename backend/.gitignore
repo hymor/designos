@@ -1,0 +1,6 @@
+# Dependencies and build
+node_modules/
+dist/
+
+# Persisted documents (user data)
+data/

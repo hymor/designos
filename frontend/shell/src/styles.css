@@ -1,0 +1,13 @@
+/* You can add global styles to this file, and also import other style files */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  font-family: 'Segoe UI', Helvetica, sans-serif;
+}
+
+/* Hide legacy DOM-driven object context menu when Angular shell is active. */
+#obj-context-menu {
+  display: none !important;
+}
+
