@@ -3,13 +3,16 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "npm --prefix frontend/shell run start",
-    "build": "npm --prefix frontend/shell run build",
+    "dev": "npm run dev:frontend",
+    "build": "npm --prefix frontend/shell run build && npm --prefix backend run build",
     "preview": "npm --prefix frontend/shell run build",
     "legacy:dev": "vite",
     "legacy:build": "vite build",
     "legacy:preview": "vite preview",
-    "backend:dev": "npm --prefix backend run start:dev"
+    "dev:backend": "npm --prefix backend run start:dev",
+    "dev:frontend": "npm --prefix frontend/shell run start",
+    "db:up": "cd backend && docker compose up -d",
+    "db:down": "cd backend && docker compose down"
   },
   "devDependencies": {
     "vite": "^5.4.0",
