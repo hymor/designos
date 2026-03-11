@@ -61,6 +61,11 @@ export class DocumentsService {
 
     const version =
       jsonData && typeof (jsonData as any).version === 'number' ? (jsonData as any).version : 8;
+    const nextNameRaw =
+      jsonData && typeof (jsonData as any).projName === 'string'
+        ? ((jsonData as any).projName as string)
+        : project.name || 'Untitled';
+    const nextName = nextNameRaw.trim() || 'Untitled';
 
     await this.prisma.$transaction(async (tx) => {
       await tx.document.upsert({
@@ -71,7 +76,7 @@ export class DocumentsService {
           jsonData:
             jsonData && typeof jsonData === 'object'
               ? (jsonData as unknown as Prisma.InputJsonValue)
-              : (minimalEmptyDocument(encodeProjectId(project.id), project.name || 'Untitled') as unknown as Prisma.InputJsonValue),
+              : (minimalEmptyDocument(encodeProjectId(project.id), nextName) as unknown as Prisma.InputJsonValue),
         },
         update: {
           version,
@@ -80,11 +85,11 @@ export class DocumentsService {
         select: { id: true },
       });
 
-      // Ensure project.updatedAt reflects document save (useful for ordering lists).
+      // Ensure project.updatedAt and name reflect latest document (projName).
       await tx.project.update({
         where: { id: project.id },
-        data: { updatedAt: new Date() },
-        select: { id: true },
+        data: { updatedAt: new Date(), name: nextName },
+        select: { id: true, name: true },
       });
     });
 
