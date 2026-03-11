@@ -114,7 +114,15 @@ export class EditorEngine {
       stroke: item.stroke != null ? item.stroke : undefined,
       strokeWidth: item.strokeWidth != null ? item.strokeWidth : undefined,
       opacity: item.opacity != null ? item.opacity : undefined,
-      rx: item.rx != null ? item.rx : undefined
+      rx: item.rx != null ? item.rx : undefined,
+      // Typography (for text elements; optional for others)
+      fs: item.fs != null ? item.fs : undefined,
+      lineHeight: item.lineHeight != null ? item.lineHeight : undefined,
+      letterSpacing: item.letterSpacing != null ? item.letterSpacing : undefined,
+      textAlign: item.textAlign != null ? item.textAlign : undefined,
+      fw: item.fw != null ? item.fw : undefined,
+      fontStyle: item.fontStyle != null ? item.fontStyle : undefined,
+      fontFamily: item.fontFamily != null ? item.fontFamily : undefined
     };
   }
 

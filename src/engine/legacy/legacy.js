@@ -6187,6 +6187,46 @@ if (typeof window !== 'undefined') {
     snapshot();
     if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
   }
+  function updateItemFontSize(id, value) {
+    var T = findAny(id);
+    if (!T || T.type !== 'text') return;
+    var v = typeof value === 'number' ? value : parseFloat(value);
+    if (v == null || isNaN(v) || v <= 0) return;
+    T.fs = v;
+    if (typeof updateTextBounds === 'function') updateTextBounds(T);
+    renderEl(T);
+    snapshot();
+    if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
+  }
+  function updateItemLineHeight(id, value) {
+    var T = findAny(id);
+    if (!T || T.type !== 'text') return;
+    var v = typeof value === 'number' ? value : parseFloat(value);
+    if (v == null || isNaN(v) || v <= 0) return;
+    T.lineHeight = v;
+    if (typeof updateTextBounds === 'function') updateTextBounds(T);
+    renderEl(T);
+    snapshot();
+    if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
+  }
+  function updateItemFontFamily(id, value) {
+    var T = findAny(id);
+    if (!T || T.type !== 'text') return;
+    T.fontFamily = value != null && value !== '' ? String(value) : 'system-ui,sans-serif';
+    renderEl(T);
+    snapshot();
+    if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
+  }
+  function updateItemLetterSpacing(id, value) {
+    var T = findAny(id);
+    if (!T || T.type !== 'text') return;
+    var v = value === '' || value === null || value === undefined ? 0 : (typeof value === 'number' ? value : parseFloat(value));
+    T.letterSpacing = isNaN(v) ? 0 : v;
+    if (typeof updateTextBounds === 'function') updateTextBounds(T);
+    renderEl(T);
+    snapshot();
+    if (window.__designosAPI && window.__designosAPI.onSelectionChange) window.__designosAPI.onSelectionChange();
+  }
   function createTableAtCenter(rows, cols) {
     if (!dom || !dom.canvas) return;
     var r = dom.canvas.getBoundingClientRect();
@@ -6240,6 +6280,10 @@ if (typeof window !== 'undefined') {
     updateItemStrokeWidth: updateItemStrokeWidth,
     updateItemOpacity: updateItemOpacity,
     updateItemRadius: updateItemRadius,
+    updateItemFontSize: updateItemFontSize,
+    updateItemLineHeight: updateItemLineHeight,
+    updateItemFontFamily: updateItemFontFamily,
+    updateItemLetterSpacing: updateItemLetterSpacing,
     createTableAtCenter: createTableAtCenter,
     openSvgPasteChoice: null,
     exportSelectedAsPng: exportSelectedAsPng,

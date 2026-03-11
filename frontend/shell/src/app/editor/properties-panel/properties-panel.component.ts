@@ -213,6 +213,59 @@ import {
             />
           </div>
         </div>
+
+        @if (isText) {
+          <div class="ps">
+            <div class="ps-t">Typography</div>
+            <div class="pr">
+              <span class="pl">Font</span>
+              <select
+                class="pi pi-select"
+                [ngModel]="editFontFamily"
+                (ngModelChange)="onFontFamilyChange(p.id, $event)"
+              >
+                @for (opt of fontOptions; track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+            </div>
+            <div class="pr">
+              <span class="pl">Size</span>
+              <input
+                type="number"
+                class="pi"
+                min="1"
+                [ngModel]="editFontSize"
+                (ngModelChange)="editFontSize = $event"
+                (blur)="onFontSizeBlur(p.id)"
+              />
+            </div>
+            <div class="pr">
+              <span class="pl">LineH</span>
+              <input
+                type="number"
+                class="pi"
+                step="0.1"
+                min="0.1"
+                [ngModel]="editLineHeight"
+                (ngModelChange)="editLineHeight = $event"
+                (blur)="onLineHeightBlur(p.id)"
+              />
+            </div>
+            <div class="pr">
+              <span class="pl">Spacing</span>
+              <input
+                type="number"
+                class="pi"
+                step="0.5"
+                [ngModel]="editLetterSpacing"
+                (ngModelChange)="editLetterSpacing = $event"
+                (blur)="onLetterSpacingBlur(p.id)"
+                title="Letter spacing / kerning (px)"
+              />
+            </div>
+          </div>
+        }
       } @else {
         <p class="no-selection">No selection</p>
       }
@@ -318,6 +371,10 @@ import {
       .pi-readonly {
         opacity: 0.7;
       }
+      .pi-select {
+        cursor: pointer;
+        appearance: auto;
+      }
       .g2 {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -391,6 +448,22 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
   editFillHex = '#7b61ff';
   editStrokeHex = '#ffffff';
   editStrokeWidth = 0;
+  editFontSize = 18;
+  editLineHeight = 1.2;
+  editFontFamily = 'system-ui,sans-serif';
+  editLetterSpacing = 0;
+  readonly fontOptions: { value: string; label: string }[] = [
+    { value: 'system-ui,sans-serif', label: 'System UI' },
+    { value: 'Arial', label: 'Arial' },
+    { value: 'Helvetica', label: 'Helvetica' },
+    { value: 'Georgia', label: 'Georgia' },
+    { value: '"Times New Roman",serif', label: 'Times New Roman' },
+    { value: 'Verdana', label: 'Verdana' },
+    { value: 'Tahoma', label: 'Tahoma' },
+    { value: '"Trebuchet MS",sans-serif', label: 'Trebuchet MS' },
+    { value: '"Courier New",monospace', label: 'Courier New' },
+    { value: 'monospace', label: 'Monospace' },
+  ];
   private readonly destroy$ = new Subject<void>();
 
   constructor(
@@ -405,6 +478,10 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
   get showRadius(): boolean {
     const t = this.props?.type;
     return t === 'rect' || t === 'frame';
+  }
+
+  get isText(): boolean {
+    return this.props?.type === 'text';
   }
 
   /** Округление до 1 знака после запятой, доли после второго знака — в большую сторону (для отображения X,Y,W,H). */
@@ -446,9 +523,51 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
             this.props.strokeWidth != null
               ? PropertiesPanelComponent.roundUpTo1Decimal(this.props.strokeWidth)
               : 0;
+          if (this.props.type === 'text') {
+            this.editFontSize =
+              typeof this.props.fs === 'number'
+                ? PropertiesPanelComponent.roundUpTo1Decimal(this.props.fs)
+                : 18;
+            this.editLineHeight =
+              typeof this.props.lineHeight === 'number'
+                ? PropertiesPanelComponent.roundUpTo1Decimal(this.props.lineHeight)
+                : 1.2;
+            this.editFontFamily =
+              this.props.fontFamily && this.props.fontFamily !== ''
+                ? this.props.fontFamily
+                : 'system-ui,sans-serif';
+            this.editLetterSpacing =
+              typeof this.props.letterSpacing === 'number' && Number.isFinite(this.props.letterSpacing)
+                ? PropertiesPanelComponent.roundUpTo1Decimal(this.props.letterSpacing)
+                : 0;
+          }
         }
         this.cdr.markForCheck();
       });
+  }
+
+  onFontSizeBlur(id: string): void {
+    const v = Number(this.editFontSize);
+    if (!Number.isFinite(v) || v <= 0) return;
+    this.editorFacade.updateTextFontSize(id, v);
+  }
+
+  onLineHeightBlur(id: string): void {
+    const v = Number(this.editLineHeight);
+    if (!Number.isFinite(v) || v <= 0) return;
+    this.editorFacade.updateTextLineHeight(id, v);
+  }
+
+  onFontFamilyChange(id: string, value: string): void {
+    this.editFontFamily = value ?? 'system-ui,sans-serif';
+    this.editorFacade.updateTextFontFamily(id, this.editFontFamily);
+    this.cdr.markForCheck();
+  }
+
+  onLetterSpacingBlur(id: string): void {
+    const v = Number(this.editLetterSpacing);
+    if (!Number.isFinite(v)) return;
+    this.editorFacade.updateTextLetterSpacing(id, v);
   }
 
   onPositionBlur(id: string): void {

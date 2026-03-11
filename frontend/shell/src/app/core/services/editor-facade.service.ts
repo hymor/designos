@@ -22,6 +22,14 @@ export interface EditorElementProperties {
   strokeWidth?: number;
   opacity?: number;
   rx?: number;
+  // Typography (for text elements; optional for others)
+  fs?: number;
+  lineHeight?: number;
+  letterSpacing?: number;
+  textAlign?: string;
+  fw?: string | number;
+  fontStyle?: string;
+  fontFamily?: string;
 }
 
 export interface EditorSceneItem {
@@ -926,6 +934,46 @@ export class EditorFacadeService {
       this.refreshSceneItems();
       this.markDirty();
     }
+  }
+
+  /** Update text font size in px (text elements only). */
+  updateTextFontSize(id: string, px: number): void {
+    const api = this.designosAPI;
+    if (!api || typeof api.updateItemFontSize !== 'function') return;
+    api.updateItemFontSize(id, px);
+    this.selectionSubject.next(this.getSelection());
+    this.refreshSceneItems();
+    this.markDirty();
+  }
+
+  /** Update text line-height multiplier (text elements only). */
+  updateTextLineHeight(id: string, lh: number): void {
+    const api = this.designosAPI;
+    if (!api || typeof api.updateItemLineHeight !== 'function') return;
+    api.updateItemLineHeight(id, lh);
+    this.selectionSubject.next(this.getSelection());
+    this.refreshSceneItems();
+    this.markDirty();
+  }
+
+  /** Update text font family (text elements only). */
+  updateTextFontFamily(id: string, fontFamily: string): void {
+    const api = this.designosAPI;
+    if (!api || typeof api.updateItemFontFamily !== 'function') return;
+    api.updateItemFontFamily(id, fontFamily);
+    this.selectionSubject.next(this.getSelection());
+    this.refreshSceneItems();
+    this.markDirty();
+  }
+
+  /** Update text letter-spacing / kerning in px (text elements only). */
+  updateTextLetterSpacing(id: string, px: number): void {
+    const api = this.designosAPI;
+    if (!api || typeof api.updateItemLetterSpacing !== 'function') return;
+    api.updateItemLetterSpacing(id, px);
+    this.selectionSubject.next(this.getSelection());
+    this.refreshSceneItems();
+    this.markDirty();
   }
 
   /** Get current document as JSON-serializable object (legacy format). */
