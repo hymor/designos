@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16
@@ -32,8 +30,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend/shell
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/shell/Dockerfile
     container_name: designos_frontend
     restart: unless-stopped
     depends_on:

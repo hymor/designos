@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, of, switchMap, throwError, combineLatest } from 'rxjs';
 import { catchError, debounceTime, filter, finalize, tap } from 'rxjs/operators';
-import { bootstrapLegacyEditor } from '@designos/bootstrap-legacy-editor';
+import { bootstrapLegacyEditor } from '../../../../../../src/app/bootstrap-legacy-editor';
 import { EditorApiService } from './editor-api.service';
 
 export interface EditorSelection {
