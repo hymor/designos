@@ -22,3 +22,4 @@ backend/dist/
 
 # Archives
 *.zip
+/frontend/shell/.angular
